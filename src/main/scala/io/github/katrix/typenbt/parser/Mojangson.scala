@@ -32,6 +32,7 @@ object Mojangson {
 	def mojangsonToAST(mojangson: String): Parser.ParseResult[NBTCompound] = Parser.parse(Parser.wholeNbt, mojangson)
 	def mojangsonToNBT(mojangson: String): Either[String, nbt.NBTTag[_]] = mojangsonToAST(mojangson) match {
 		case Parser.Success(AST(unknownNbt), _) => Right(unknownNbt)
+		case Parser.Success(errorAST, _) => Left("Could not convert AST to NBT")
 		case Parser.Error(msg, _) => Left(msg)
 		case Parser.Failure(msg, _) => Left(msg)
 	}
@@ -87,6 +88,7 @@ object Mojangson {
 
 				checkIndex(list, 0)
 			} => NBTList(head.id, list.map(_._2))
+			case Nil => NBTList(Ids.Byte, Seq()) //We use byte if there are no elements
 		}
 
 		def wholeNbt: Parser[NBTCompound] = phrase(nbtCompound)
@@ -102,21 +104,20 @@ object Mojangson {
 		case NBTByteArray(array) => s"[${array.length} bytes]"
 		case NBTString(s) => s""""$s""""
 		case NBTList(_, list) =>
+			val b = new StringBuilder("[")
 
-			@tailrec
-			def inner(index: Int, rest: Seq[Tag[_]], acc: StringBuilder): StringBuilder = {
-				if(rest == Nil) acc
-				else {
-					if(index != 0) acc.append(',')
-					inner(index + 1, rest.tail, acc.append(s"$index:${toMojangson(rest.head)}"))
+			for((tag, index) <- list.zipWithIndex) {
+				if(index != 0) {
+					b.append(',')
 				}
+				b.append(s"$index:${toMojangson(tag)}")
 			}
 
-			inner(0, list, new StringBuilder("[")).append(']').mkString
+			b.append(']').mkString
 		case NBTCompound(tags) =>
 			val b = new StringBuilder("{")
 
-			for(NamedTag((name, tag)) <- tags.seq) {
+			for(NamedTag((name, tag)) <- tags) {
 				if(b.length != 1) {
 					b.append(',')
 				}
@@ -124,53 +125,52 @@ object Mojangson {
 			}
 
 			b.append('}').toString
-
 		case NBTIntArray(array) =>
 			val b = new StringBuilder("[")
 			array.foreach(i => b.append(s"$i,"))
-			b.append(']').mkString
+			b.dropRight(1).append(']').mkString
 	}
 
-	def toMojangsonIndent(tag: Tag[_], indentLevel: Int): String = {
-		def indent(b: StringBuilder, indentLevel: Int): StringBuilder = {
+	def toMojangsonIndent(tag: Tag[_], indentLevel: Int, indentChar: Char): String = {
+		def indent(b: StringBuilder, indentLevel: Int): Unit = {
 			b.append('\n')
-			(0 to indentLevel).foreach(i => b.append('\t'))
-			b
+			(0 to indentLevel).foreach(i => b.append(indentChar))
 		}
 
 		tag match {
 			case NBTList(_, list) =>
-				@tailrec
-				def inner(index: Int, rest: Seq[Tag[_]], acc: StringBuilder): StringBuilder = {
-					if(rest == Nil) acc
-					else {
-						if(index != 0) acc.append(',')
-						indent(acc, indentLevel)
-						inner(index + 1, rest.tail, acc.append(s"$index:${toMojangson(rest.head)}"))
+				val b = new StringBuilder("[")
+
+				for((tag, index) <- list.zipWithIndex) {
+					if(index != 0) {
+						b.append(',')
 					}
+					indent(b, indentLevel)
+					b.append(s"$index:${toMojangsonIndent(tag, indentLevel + 1, indentChar)}")
 				}
 
-				val b = inner(0, list, new StringBuilder("["))
-				indent(b, indentLevel - 1)
-				b.append(']').toString
+				if(list.nonEmpty) {
+					indent(b, indentLevel - 1)
+				}
+				b.append(']').mkString
 
 			case NBTCompound(tags) =>
 				val b = new StringBuilder("{")
 
-				for(NamedTag((name, tag)) <- tags.seq) {
+				for(NamedTag((name, tag)) <- tags) {
 					if(b.length != 1) {
 						b.append(',')
 					}
 
 					indent(b, indentLevel)
-					b.append(s"$name:${toMojangsonIndent(tag, indentLevel + 1)}")
+					b.append(s"$name:${toMojangsonIndent(tag, indentLevel + 1, indentChar)}")
 				}
 
 				if(tags.nonEmpty) {
 					indent(b, indentLevel - 1)
 				}
 
-				b.append('}').toString
+				b.append('}').mkString
 			case _ => toMojangson(tag)
 		}
 	}

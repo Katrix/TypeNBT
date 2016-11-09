@@ -23,63 +23,64 @@ package io.github.katrix.typenbt.nbt
 import java.util.UUID
 
 import scala.annotation.tailrec
-import scala.reflect.ClassTag
+
+import shapeless.TypeCase
 
 sealed trait NBTTag[Repr] {
-	type Self <: NBTTag[Repr]
-	implicit val nbtType: NBTType[Repr, Self]
 	def value: Repr
+	type Self <: NBTTag[Repr]
+	def nbtType: NBTType.Aux[Repr, Self]
 }
 
 final case class NBTByte(value: Byte) extends NBTTag[Byte] {
 	override type Self = NBTByte
-	override implicit val nbtType: NBTType[Byte, Self] = NBTView.TAG_BYTE
+	override def nbtType: NBTType.Aux[Byte, Self] = NBTType.TAG_BYTE
 }
 final case class NBTShort(value: Short) extends NBTTag[Short] {
 	override type Self = NBTShort
-	override implicit val nbtType: NBTType[Short, Self] = NBTView.TAG_SHORT
+	override def nbtType: NBTType.Aux[Short, Self] = NBTType.TAG_SHORT
 }
 final case class NBTInt(value: Int) extends NBTTag[Int] {
 	override type Self = NBTInt
-	override implicit val nbtType: NBTType[Int, Self] = NBTView.TAG_INT
+	override def nbtType: NBTType.Aux[Int, Self] = NBTType.TAG_INT
 }
 final case class NBTLong(value: Long) extends NBTTag[Long] {
 	override type Self = NBTLong
-	override implicit val nbtType: NBTType[Long, Self] = NBTView.TAG_LONG
+	override def nbtType: NBTType.Aux[Long, Self] = NBTType.TAG_LONG
 }
 final case class NBTFloat(value: Float) extends NBTTag[Float] {
 	override type Self = NBTFloat
-	override implicit val nbtType: NBTType[Float, Self] = NBTView.TAG_FLOAT
+	override def nbtType: NBTType.Aux[Float, Self] = NBTType.TAG_FLOAT
 }
 final case class NBTDouble(value: Double) extends NBTTag[Double] {
 	override type Self = NBTDouble
-	override implicit val nbtType: NBTType[Double, Self] = NBTView.TAG_DOUBLE
+	override def nbtType: NBTType.Aux[Double, Self] = NBTType.TAG_DOUBLE
 }
 final case class NBTByteArray(value: IndexedSeq[Byte]) extends NBTTag[IndexedSeq[Byte]] {
 	override type Self = NBTByteArray
-	override implicit val nbtType: NBTType[IndexedSeq[Byte], Self] = NBTView.TAG_BYTE_ARRAY
+	override def nbtType: NBTType.Aux[IndexedSeq[Byte], Self] = NBTType.TAG_BYTE_ARRAY
 }
 final case class NBTString(value: String) extends NBTTag[String] {
 	override type Self = NBTString
-	override implicit val nbtType: NBTType[String, Self] = NBTView.TAG_STRING
+	override def nbtType: NBTType.Aux[String, Self] = NBTType.TAG_STRING
 }
 
-final case class NBTList[A <: NBTTag[Repr], Repr](value: Seq[A] = Seq())
-	(implicit val nbtListType: NBTType[Repr, A], val nbtType: NBTType[Seq[A], NBTList[A, Repr]]) extends NBTTag[Seq[A]] {
-	override type Self = NBTList[A, Repr]
+final case class NBTList[ElementRepr, A <: NBTTag[ElementRepr]](value: Seq[A] = Seq())
+	(implicit val nbtType: NBTType.Aux[Seq[A], NBTList[ElementRepr, A]], implicit val nbtListType: NBTType.Aux[ElementRepr, A]) extends NBTTag[Seq[A]] {
+	override type Self = NBTList[ElementRepr, A]
 
 	def apply(i: Int): A = value(i)
 
 	/**
 		* Creates a new NBTList with this element prepended
 		*/
-	def +:(value: A): NBTList[A, Repr] = NBTList[A, Repr](value +: this.value)
+	def +:(value: A): NBTList[ElementRepr, A] = NBTList[ElementRepr, A](value +: this.value)
 
 	/**
 		* Creates a new NBTList with this element appended
 		*/
-	def :+(value: A): NBTList[A, Repr] = NBTList[A, Repr](this.value :+ value)
-	def ++(values: A*): NBTList[A, Repr] = NBTList[A, Repr](this.value ++ values)
+	def :+(value: A): NBTList[ElementRepr, A] = NBTList[ElementRepr, A](this.value :+ value)
+	def ++(values: A*): NBTList[ElementRepr, A] = NBTList[ElementRepr, A](this.value ++ values)
 
 	/**
 		* The index of the specific element.
@@ -99,7 +100,7 @@ final case class NBTList[A <: NBTTag[Repr], Repr](value: Seq[A] = Seq())
 
 final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTTag[Map[String, NBTTag[_]]] {
 	override type Self = NBTCompound
-	override implicit val nbtType: NBTType[Map[String, NBTTag[_]], Self] = NBTView.TAG_COMPOUND
+	override def nbtType: NBTType.Aux[Map[String, NBTTag[_]], Self] = NBTType.TAG_COMPOUND
 
 	/**
 		* The size of this compound.
@@ -108,7 +109,7 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 
 	def +(tuple: (String, NBTTag[_])): NBTCompound = NBTCompound(value + tuple)
 
-	def update(key: String, tag: NBTTag[_]): NBTCompound = NBTCompound(value.updated(key, tag))
+	def updated(key: String, tag: NBTTag[_]): NBTCompound = NBTCompound(value.updated(key, tag))
 
 	/**
 		* Associates a specific tag to a specific key.
@@ -117,25 +118,25 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 		* @param tag The tag to set.
 		* @return An [[Option]] with the previous value of the used key, or None if the key was not already used.
 		*/
-	def set(key: String, tag: NBTTag[_]): NBTCompound = update(key, tag)
+	def set(key: String, tag: NBTTag[_]): NBTCompound = updated(key, tag)
 
 	/**
-		* Creates a NBTTag from the types passed in, and adds it to the compound.
+		* Creates a NBTTag from the type passed in, and adds it to the compound.
 		*
 		* @param key The key to bind to.
 		* @param value The value top set
-		* @param view The converter to convert the value to a NBTTag
-		* @tparam NBT The tag to convert to
+		* @param to The converter to convert the value to a NBTTag
 		* @tparam Repr The type to convert from
+		* @tparam NBT The tag to convert to
 		*/
-	def setValue[NBT <: NBTTag[_], Repr](key: String, value: Repr)(implicit view: NBTView[Repr, NBT]): NBTCompound = {
-		set(key, view.apply(value))
+	def setValue[Repr, NBT <: NBTTag[_]](key: String, value: Repr)(implicit to: NBTView.Aux[Repr, NBT]): NBTCompound = {
+		set(key, to(value))
 	}
 
 	/**
 		* Creates two [[NBTLong]] tags from the UUID and sets the tags.
 		*
-		* This method differs in behavior from the [[NBTView.UUIDView]] found in the views.
+		* This method differs in behavior from [[NBTViewInstances.UUIDView]].
 		* If you want compatibility with vanilla, use this.
 		*
 		* The key of the two tags are key + "Most" for the most significant bits,
@@ -143,11 +144,10 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 		*
 		* @return The same things goes for this as for [[set]], only here you have a [[Seq]] instead of an [[Option]]
 		*/
-	def setUUID(key: String, value: UUID)(implicit longType: NBTView[Long, NBTLong]): NBTCompound = {
-		val ret1 = setValue[NBTLong, Long](s"${key}Most", value.getMostSignificantBits)
-		val ret2 = ret1.setValue[NBTLong, Long](s"${key}Least", value.getLeastSignificantBits)
-
-		ret2
+	def setUUID(key: String, value: UUID): NBTCompound = {
+		val most = NBTLong(value.getMostSignificantBits)
+		val least = NBTLong(value.getLeastSignificantBits)
+		set(s"${key}Most", most).set(s"${key}Least", least)
 	}
 
 	/**
@@ -161,20 +161,20 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 		*/
 	def get(key: String): Option[NBTTag[_]] = value.get(key)
 
-	//Is including the ClassTag enough to make sure this is safe?
-	def getValue[NBT <: NBTTag[_] : ClassTag, Repr](key: String)(implicit view: NBTView[Repr, NBT]): Option[Repr] = {
-		get(key).collect {
-			case view(nbt) => nbt
+	def getValue[Repr, NBT <: NBTTag[_]](key: String)(implicit from: NBTView.Aux[Repr, NBT], tpe: TypeCase[NBT]): Option[Repr] = {
+		get(key).flatMap {
+			case tpe(nbt) => from.unapply(nbt)
+			case _ => None
 		}
 	}
 
 	/**
 		* Tries to get an [[UUID]] created with [[setUUID]].
 		*/
-	def getUUID(key: String)(implicit view: NBTView[Long, NBTLong]): Option[UUID] = {
+	def getUUID(key: String): Option[UUID] = {
 		get(s"${key}Most")
-			.collect { case view(most) => get(s"${key}Least")
-				.collect { case view(least) => new UUID(most, least) }
+			.collect { case NBTLong(most) => get(s"${key}Least")
+				.collect { case NBTLong(least) => new UUID(most, least) }
 			}.flatten
 	}
 
@@ -183,6 +183,13 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 		val tail = keys.tail
 		if(tail == Nil) get(keys.head)
 		else getRecursive(tail: _*)
+	}
+
+	@tailrec
+	def getRecursiveValue[Repr, NBT <: NBTTag[_]](key: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: TypeCase[NBT]): Option[Repr] = {
+		val tail = key.tail
+		if(tail == Nil) getValue[Repr, NBT](key.head)
+		else getRecursiveValue[Repr, NBT](key.tail: _*)
 	}
 
 	/**
@@ -245,5 +252,5 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag[IndexedSeq[Int]] {
 	override type Self = NBTIntArray
-	override implicit val nbtType: NBTType[IndexedSeq[Int], Self] = NBTView.TAG_INT_ARRAY
+	override def nbtType: NBTType.Aux[IndexedSeq[Int], Self] = NBTType.TAG_INT_ARRAY
 }

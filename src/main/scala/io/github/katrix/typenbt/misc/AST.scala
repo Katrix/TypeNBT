@@ -21,7 +21,6 @@
 package io.github.katrix.typenbt.misc
 
 import io.github.katrix.typenbt.nbt
-import io.github.katrix.typenbt.nbt.{NBTTag, NBTType}
 
 object AST {
 
@@ -54,9 +53,9 @@ object AST {
 			case NBTList(id, list) =>
 				val sequenced = sequence(list.map(unapply))
 				//Biggest hack ever
-				sequenced.flatMap(tagList => nbt.NBTView.idToType(id).map(listType =>
-					nbt.NBTList[NBTTag[Nothing], Nothing](tagList.asInstanceOf[Seq[NBTTag[Nothing]]])
-						(listType.asInstanceOf[NBTType[Nothing, NBTTag[Nothing]]], nbt.NBTView.TAG_LIST)))
+				sequenced.flatMap(tagList => nbt.NBTType.idToType(id).map(listType =>
+					nbt.NBTList[Nothing, nbt.NBTTag[Nothing]](tagList.asInstanceOf[Seq[nbt.NBTTag[Nothing]]])
+						(nbt.NBTType.TAG_LIST, listType.asInstanceOf[nbt.NBTType.Aux[Nothing, nbt.NBTTag[Nothing]]])))
 			case NBTCompound(tags) =>
 				val converted: Seq[Option[(String, nbt.NBTTag[_])]] = tags.map {
 					case NamedTag((name, AST(nbtTag))) => Some(name -> nbtTag)
@@ -76,15 +75,30 @@ object AST {
 
 	final case class NamedTag(value: (String, Tag[_])) extends NBTAST[(String, Tag[_])]
 
-	final case class NBTByte(value: Byte) extends Tag[Byte](1)
-	final case class NBTShort(value: Short) extends Tag[Short](2)
-	final case class NBTInt(value: Int) extends Tag[Int](3)
-	final case class NBTLong(value: Long) extends Tag[Long](4)
-	final case class NBTFloat(value: Float) extends Tag[Float](5)
-	final case class NBTDouble(value: Double) extends Tag[Double](6)
-	final case class NBTByteArray(value: IndexedSeq[Byte]) extends Tag[IndexedSeq[Byte]](7)
-	final case class NBTString(value: String) extends Tag[String](8)
-	final case class NBTList(listId: Int, value: Seq[Tag[_]]) extends Tag[Seq[Tag[_]]](9)
-	final case class NBTCompound(value: Seq[NamedTag]) extends Tag[Seq[NamedTag]](10)
-	final case class NBTIntArray(value: IndexedSeq[Int]) extends Tag[IndexedSeq[Int]](11)
+	final case class NBTByte(value: Byte) extends Tag[Byte](Ids.Byte)
+	final case class NBTShort(value: Short) extends Tag[Short](Ids.Short)
+	final case class NBTInt(value: Int) extends Tag[Int](Ids.Int)
+	final case class NBTLong(value: Long) extends Tag[Long](Ids.Long)
+	final case class NBTFloat(value: Float) extends Tag[Float](Ids.Float)
+	final case class NBTDouble(value: Double) extends Tag[Double](Ids.Double)
+	final case class NBTByteArray(value: IndexedSeq[Byte]) extends Tag[IndexedSeq[Byte]](Ids.ByteArray)
+	final case class NBTString(value: String) extends Tag[String](Ids.String)
+	final case class NBTList(listId: Byte, value: Seq[Tag[_]]) extends Tag[Seq[Tag[_]]](Ids.List)
+	final case class NBTCompound(value: Seq[NamedTag]) extends Tag[Seq[NamedTag]](Ids.Compound)
+	final case class NBTIntArray(value: IndexedSeq[Int]) extends Tag[IndexedSeq[Int]](Ids.IntArray)
+
+	object Ids {
+		final val End      : Byte = 0
+		final val Byte     : Byte = 1
+		final val Short    : Byte = 2
+		final val Int      : Byte = 3
+		final val Long     : Byte = 4
+		final val Float    : Byte = 5
+		final val Double   : Byte = 6
+		final val ByteArray: Byte = 7
+		final val String   : Byte = 8
+		final val List     : Byte = 9
+		final val Compound : Byte = 10
+		final val IntArray : Byte = 11
+	}
 }
