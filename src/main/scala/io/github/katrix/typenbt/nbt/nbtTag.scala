@@ -33,41 +33,41 @@ sealed trait NBTTag[Repr] {
 }
 
 final case class NBTByte(value: Byte) extends NBTTag[Byte] {
-	override type Self = NBTByte
+	override type Self = NBTTag[Byte]
 	override def nbtType: NBTType.Aux[Byte, Self] = NBTType.TAG_BYTE
 }
 final case class NBTShort(value: Short) extends NBTTag[Short] {
-	override type Self = NBTShort
+	override type Self = NBTTag[Short]
 	override def nbtType: NBTType.Aux[Short, Self] = NBTType.TAG_SHORT
 }
 final case class NBTInt(value: Int) extends NBTTag[Int] {
-	override type Self = NBTInt
+	override type Self = NBTTag[Int]
 	override def nbtType: NBTType.Aux[Int, Self] = NBTType.TAG_INT
 }
 final case class NBTLong(value: Long) extends NBTTag[Long] {
-	override type Self = NBTLong
+	override type Self = NBTTag[Long]
 	override def nbtType: NBTType.Aux[Long, Self] = NBTType.TAG_LONG
 }
 final case class NBTFloat(value: Float) extends NBTTag[Float] {
-	override type Self = NBTFloat
+	override type Self = NBTTag[Float]
 	override def nbtType: NBTType.Aux[Float, Self] = NBTType.TAG_FLOAT
 }
 final case class NBTDouble(value: Double) extends NBTTag[Double] {
-	override type Self = NBTDouble
+	override type Self = NBTTag[Double]
 	override def nbtType: NBTType.Aux[Double, Self] = NBTType.TAG_DOUBLE
 }
 final case class NBTByteArray(value: IndexedSeq[Byte]) extends NBTTag[IndexedSeq[Byte]] {
-	override type Self = NBTByteArray
+	override type Self = NBTTag[IndexedSeq[Byte]]
 	override def nbtType: NBTType.Aux[IndexedSeq[Byte], Self] = NBTType.TAG_BYTE_ARRAY
 }
 final case class NBTString(value: String) extends NBTTag[String] {
-	override type Self = NBTString
+	override type Self = NBTTag[String]
 	override def nbtType: NBTType.Aux[String, Self] = NBTType.TAG_STRING
 }
 
 final case class NBTList[ElementRepr, A <: NBTTag[ElementRepr]](value: Seq[A] = Seq())
-	(implicit val nbtType: NBTType.Aux[Seq[A], NBTList[ElementRepr, A]], implicit val nbtListType: NBTType.Aux[ElementRepr, A]) extends NBTTag[Seq[A]] {
-	override type Self = NBTList[ElementRepr, A]
+	(implicit val nbtType: NBTType.Aux[Seq[A], NBTTag[Seq[A]]], implicit val nbtListType: NBTType.Aux[ElementRepr, A]) extends NBTTag[Seq[A]] {
+	override type Self = NBTTag[Seq[A]]
 
 	def apply(i: Int): A = value(i)
 
@@ -99,7 +99,7 @@ final case class NBTList[ElementRepr, A <: NBTTag[ElementRepr]](value: Seq[A] = 
 }
 
 final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTTag[Map[String, NBTTag[_]]] {
-	override type Self = NBTCompound
+	override type Self = NBTTag[Map[String, NBTTag[_]]]
 	override def nbtType: NBTType.Aux[Map[String, NBTTag[_]], Self] = NBTType.TAG_COMPOUND
 
 	/**
@@ -251,6 +251,6 @@ final case class NBTCompound(value: Map[String, NBTTag[_]] = Map()) extends NBTT
 }
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag[IndexedSeq[Int]] {
-	override type Self = NBTIntArray
+	override type Self = NBTTag[IndexedSeq[Int]]
 	override def nbtType: NBTType.Aux[IndexedSeq[Int], Self] = NBTType.TAG_INT_ARRAY
 }
