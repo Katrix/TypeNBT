@@ -136,64 +136,11 @@ trait NBTTypeInstances {
 		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_END
 	}
 
-	implicit case object ListByte extends NBTListType {
-		override type ElementRepr = Byte
-		override type ElementNBT = NBTByte#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_BYTE
-	}
-
-	implicit case object ListShort extends NBTListType {
-		override type ElementRepr = Short
-		override type ElementNBT = NBTShort#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_SHORT
-	}
-
-	implicit case object ListInt extends NBTListType {
-		override type ElementRepr = Int
-		override type ElementNBT = NBTInt#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_INT
-	}
-
-	implicit case object ListLong extends NBTListType {
-		override type ElementRepr = Long
-		override type ElementNBT = NBTLong#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_LONG
-	}
-
-	implicit case object ListFloat extends NBTListType {
-		override type ElementRepr = Float
-		override type ElementNBT = NBTFloat#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_FLOAT
-	}
-
-	implicit case object ListDouble extends NBTListType {
-		override type ElementRepr = Double
-		override type ElementNBT = NBTDouble#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_DOUBLE
-	}
-
-	implicit case object ListByteArray extends NBTListType {
-		override type ElementRepr = IndexedSeq[Byte]
-		override type ElementNBT = NBTByteArray#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_BYTE_ARRAY
-	}
-
-	implicit case object ListString extends NBTListType {
-		override type ElementRepr = String
-		override type ElementNBT = NBTString#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_STRING
-	}
-
-	implicit case object ListCompound extends NBTListType {
-		override type ElementRepr = Map[String, NBTTag]
-		override type ElementNBT = NBTCompound#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_COMPOUND
-	}
-
-	implicit case object ListIntArray extends NBTListType {
-		override type ElementRepr = IndexedSeq[Int]
-		override type ElementNBT = NBTIntArray#Self
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_INT_ARRAY
+	implicit def listType[ElementRepr0, ElementNBT0 <: NBTTag.Aux[ElementRepr0]](
+			implicit elementType0: NBTType.Aux[ElementRepr0, ElementNBT0]) = new NBTListType {
+		override type ElementRepr = ElementRepr0
+		override type ElementNBT = ElementNBT0
+		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = elementType0
 	}
 
 	def idToType(i: Int): Option[NBTType] = i match {
