@@ -30,14 +30,14 @@ import io.github.katrix.typenbt.nbt
 object Mojangson {
 
 	def mojangsonToAST(mojangson: String): Parser.ParseResult[NBTCompound] = Parser.parse(Parser.wholeNbt, mojangson)
-	def mojangsonToNBT(mojangson: String): Either[String, nbt.NBTTag[_]] = mojangsonToAST(mojangson) match {
+	def mojangsonToNBT(mojangson: String): Either[String, nbt.NBTTag] = mojangsonToAST(mojangson) match {
 		case Parser.Success(AST(unknownNbt), _) => Right(unknownNbt)
 		case Parser.Success(errorAST, _) => Left("Could not convert AST to NBT")
 		case Parser.Error(msg, _) => Left(msg)
 		case Parser.Failure(msg, _) => Left(msg)
 	}
 
-	def nbtToMojangson(tag: nbt.NBTTag[_]): String = toMojangson(AST(tag))
+	def nbtToMojangson(tag: nbt.NBTTag): String = toMojangson(AST(tag))
 
 	object Parser extends RegexParsers {
 

@@ -32,6 +32,22 @@ object NBTType {
 	type Repr[Repr] = Aux[Repr, NBTTag.Aux[Repr]]
 
 	def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = nbtType
+
+	def idToType(i: Int): Option[NBTType] = i match {
+		case 0 => Some(NBTView.TAG_END)
+		case 1 => Some(NBTView.TAG_BYTE)
+		case 2 => Some(NBTView.TAG_SHORT)
+		case 3 => Some(NBTView.TAG_INT)
+		case 4 => Some(NBTView.TAG_LONG)
+		case 5 => Some(NBTView.TAG_FLOAT)
+		case 6 => Some(NBTView.TAG_DOUBLE)
+		case 7 => Some(NBTView.TAG_BYTE_ARRAY)
+		case 8 => Some(NBTView.TAG_STRING)
+		case 9 => Some(NBTView.TAG_LIST)
+		case 10 => Some(NBTView.TAG_COMPOUND)
+		case 11 => Some(NBTView.TAG_INT_ARRAY)
+		case _ => None
+	}
 }
 
 trait NBTTypeInstances {
@@ -141,21 +157,5 @@ trait NBTTypeInstances {
 		override type ElementRepr = ElementRepr0
 		override type ElementNBT = ElementNBT0
 		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = elementType0
-	}
-
-	def idToType(i: Int): Option[NBTType] = i match {
-		case 0 => Some(TAG_END)
-		case 1 => Some(TAG_BYTE)
-		case 2 => Some(TAG_SHORT)
-		case 3 => Some(TAG_INT)
-		case 4 => Some(TAG_LONG)
-		case 5 => Some(TAG_FLOAT)
-		case 6 => Some(TAG_DOUBLE)
-		case 7 => Some(TAG_BYTE_ARRAY)
-		case 8 => Some(TAG_STRING)
-		case 9 => Some(TAG_LIST)
-		case 10 => Some(TAG_COMPOUND)
-		case 11 => Some(TAG_INT_ARRAY)
-		case _ => None
 	}
 }

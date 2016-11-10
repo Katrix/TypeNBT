@@ -24,7 +24,7 @@ import io.github.katrix.typenbt.nbt
 
 object AST {
 
-	def apply(tag: nbt.NBTTag[_]): Tag[_] = tag match {
+	def apply(tag: nbt.NBTTag): Tag[_] = tag match {
 		case nbt.NBTByte(b) => NBTByte(b)
 		case nbt.NBTShort(s) => NBTShort(s)
 		case nbt.NBTInt(i) => NBTInt(i)
@@ -38,7 +38,7 @@ object AST {
 		case nbt.NBTIntArray(array) => NBTIntArray(array)
 	}
 
-	def unapply(tag: Tag[_]): Option[nbt.NBTTag[_]] = {
+	def unapply(tag: Tag[_]): Option[nbt.NBTTag] = {
 		def sequence[T](l: Seq[Option[T]]) = if(l.contains(None)) None else Some(l.flatten)
 
 		tag match {
@@ -54,10 +54,10 @@ object AST {
 				val sequenced = sequence(list.map(unapply))
 				//Biggest hack ever
 				sequenced.flatMap(tagList => nbt.NBTType.idToType(id).map(listType =>
-					nbt.NBTList[Nothing, nbt.NBTTag[Nothing]](tagList.asInstanceOf[Seq[nbt.NBTTag[Nothing]]])
-						(nbt.NBTType.TAG_LIST, listType.asInstanceOf[nbt.NBTType.Aux[Nothing, nbt.NBTTag[Nothing]]])))
+					nbt.NBTList[Nothing, nbt.NBTTag.Aux[Nothing]](tagList.asInstanceOf[Seq[nbt.NBTTag.Aux[Nothing]]])
+						(nbt.NBTView.TAG_LIST, listType.asInstanceOf[nbt.NBTType.Aux[Nothing, nbt.NBTTag.Aux[Nothing]]])))
 			case NBTCompound(tags) =>
-				val converted: Seq[Option[(String, nbt.NBTTag[_])]] = tags.map {
+				val converted = tags.map{
 					case NamedTag((name, AST(nbtTag))) => Some(name -> nbtTag)
 					case _ => None
 				}
