@@ -27,30 +27,28 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-import io.github.katrix.typenbt.misc.AST._
-import io.github.katrix.typenbt.nbt
+import io.github.katrix.typenbt.nbt._
 
 object IOTools {
 
 	private final val UTF8 = StandardCharsets.UTF_8
 
 	/**
-		* Writes an [[nbt.NBTCompound]] to an [[OutputStream]]
+		* Writes an [[NBTCompound]] to an [[OutputStream]]
 		*
 		* @param stream The stream to write to
 		* @param compound The tag to write out
 		* @param rootName The name of the root of the NBT. Usually not seen.
 		* @param gzip If the stream should be Gziped or not
 		*/
-	def writeTo(stream: OutputStream, compound: nbt.NBTCompound, rootName: String, gzip: Boolean): Try[Unit] = {
-		val newStream = new DataOutputStream(if(gzip) new BufferedOutputStream(new GZIPOutputStream(stream)) else stream)
-		//We use the AST so that we don't have to deal with the nightmare that is list types where we don't know the specific type
-		val ast = AST(compound).asInstanceOf[NBTCompound]
+	def writeTo(stream: OutputStream, compound: NBTCompound, rootName: String, gzip: Boolean): Try[Unit] = {
+		val newStream = new DataOutputStream(if(gzip) new BufferedOutputStream(new GZIPOutputStream(stream))
+		else stream)
 		try {
 			for {
-				_ <- writeType(newStream, ast.id)
+				_ <- writeType(newStream, compound.nbtType)
 				_ <- writeString(newStream, rootName)
-				res <- writeCompound(newStream, ast)
+				res <- writeCompound(newStream, compound)
 			} yield res
 		}
 		finally {
@@ -59,32 +57,28 @@ object IOTools {
 	}
 
 	/**
-		* Reads an [[nbt.NBTCompound]] from an [[InputStream]]
+		* Reads an [[NBTCompound]] from an [[InputStream]]
 		*
 		* @param stream The stream to read from
-		* @param gzip If the [[nbt.NBTCompound]] to read from the stream is GZiped or not
-		* @return A tuple compromising of the [[nbt.NBTCompound]] read, as well as the root name
+		* @param gzip If the [[NBTCompound]] to read from the stream is GZiped or not
+		* @return A tuple compromising of the [[NBTCompound]] read, as well as the root name
 		*/
-	def readFrom(stream: InputStream, gzip: Boolean): Try[(String, nbt.NBTCompound)] = {
-		val newStream = new DataInputStream(if(gzip) new BufferedInputStream(new GZIPInputStream(stream)) else stream)
-		val ret = try {
+	def readFrom(stream: InputStream, gzip: Boolean): Try[(String, NBTCompound)] = {
+		val newStream = new DataInputStream(if(gzip) new BufferedInputStream(new GZIPInputStream(stream))
+		else stream)
+		try {
 			readType(newStream) match {
-				case Success(nbtType) if nbtType == Ids.Compound =>
+				case Success(nbtType) if nbtType == NBTView.TAG_COMPOUND =>
 					for {
 						name <- readString(newStream)
-						tag <- readCompound(newStream, NBTCompound(Seq()))
+						tag <- readCompound(newStream, NBTCompound(Map()))
 					} yield (name, tag)
-				case Success(nbtType) => Failure(throw new IOException("Wrong starting type for NBT"))
+				case Success(_) => Failure(throw new IOException("Wrong starting type for NBT"))
 				case f: Failure[Nothing@unchecked] => f
 			}
 		}
 		finally {
 			newStream.close()
-		}
-
-		ret.flatMap {
-			case (name, AST(convertedNbt)) => Success((name, convertedNbt.asInstanceOf[nbt.NBTCompound]))
-			case _ => Failure(new IllegalStateException("Could not convert read AST to NBTCompound"))
 		}
 	}
 
@@ -93,12 +87,12 @@ object IOTools {
 	private def writeCompound(stream: DataOutputStream, nbt: NBTCompound): Try[Unit] = {
 
 		@tailrec
-		def inner(remaining: Seq[NamedTag], prev: Try[Unit]): Try[Unit] = {
-			if(remaining == Nil || prev.isFailure) prev
+		def inner(remaining: Map[String, NBTTag], prev: Try[Unit]): Try[Unit] = {
+			if(remaining.isEmpty || prev.isFailure) prev
 			else {
-				val NamedTag((name, tag)) = remaining.head
+				val (name, tag) = remaining.head
 				val next = for {
-					_ <- writeType(stream, tag.id)
+					_ <- writeType(stream, tag.nbtType)
 					_ <- writeString(stream, name)
 					res <- writeTag(stream, tag)
 				} yield res
@@ -107,7 +101,7 @@ object IOTools {
 			}
 		}
 
-		inner(nbt.value, Success(Unit)).flatMap(u => writeEndTag(stream))
+		inner(nbt.value, Success(Unit)).flatMap(_ => writeEndTag(stream))
 	}
 
 	private def writeString(stream: DataOutputStream, string: String): Try[Unit] = for {
@@ -115,9 +109,9 @@ object IOTools {
 		res <- Try(stream.write(string.getBytes(UTF8)))
 	} yield res
 
-	private def writeList(stream: DataOutputStream, list: NBTList): Try[Unit] = {
+	private def writeList(stream: DataOutputStream, list: NBTList[_, _ <: NBTTag]): Try[Unit] = {
 		val ret = for {
-			_ <- writeType(stream, list.listId)
+			_ <- writeType(stream, list.nbtListType)
 			res <- Try(stream.writeInt(list.value.size))
 		} yield res
 
@@ -139,9 +133,9 @@ object IOTools {
 		}
 	}
 
-	private def writeType(stream: DataOutputStream, tagType: Byte): Try[Unit] = Try(stream.writeByte(tagType))
+	private def writeType(stream: DataOutputStream, tagType: NBTType): Try[Unit] = Try(stream.writeByte(tagType.id))
 
-	private def writeTag(stream: DataOutputStream, nbt: Tag[_]): Try[Unit] = {
+	private def writeTag(stream: DataOutputStream, nbt: NBTTag): Try[Unit] = {
 		nbt match {
 			case NBTByte(b) => Try(stream.writeByte(b))
 			case NBTShort(s) => Try(stream.writeShort(s))
@@ -151,7 +145,7 @@ object IOTools {
 			case NBTDouble(d) => Try(stream.writeDouble(d))
 			case NBTByteArray(array) => writeByteArray(stream, array.toArray)
 			case NBTString(s) => writeString(stream, s)
-			case list: NBTList => writeList(stream, list)
+			case list: NBTList[_, _] => writeList(stream, list)
 			case compound: NBTCompound => writeCompound(stream, compound)
 			case NBTIntArray(intArray) => writeIntArray(stream, intArray.toArray)
 		}
@@ -162,11 +156,11 @@ object IOTools {
 		//We match to be tail recursive
 		readType(stream) match {
 			case Success(nbtType) =>
-				if(nbtType == Ids.End ) Success(compound)
+				if(nbtType == NBTView.TAG_END) Success(compound)
 				else {
 					readString(stream) match {
 						case Success(name) => readTag(stream, nbtType) match {
-							case Success(tag) => readCompound(stream, compound.copy(value = compound.value :+ NamedTag((name, tag))))
+							case Success(tag) => readCompound(stream, compound.set(name, tag))
 							case f: Failure[Nothing@unchecked] => f
 						}
 						case f: Failure[Nothing@unchecked] => f
@@ -182,14 +176,17 @@ object IOTools {
 		readBytes.map(u => new String(characters, UTF8))
 	})
 
-	private def readList(stream: DataInputStream): Try[NBTList] = {
+	type AnyTag = NBTView.AnyTag.NBT
+
+	private def readList(stream: DataInputStream): Try[NBTList[Any, AnyTag]] = {
 		val ret = for {
 			nbtType <- readType(stream)
 			length <- Try(stream.readInt())
 		} yield {
 
-			(0 until length).foldLeft(Success(NBTList(nbtType, Seq())): Try[NBTList]) {
-				case (Success(list), _) => readTag(stream, nbtType).map(read => list.copy(value = list.value :+ read))
+			(0 until length).foldLeft(Success(NBTList[Any, AnyTag](Seq())(NBTView.TAG_LIST,
+				nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])): Try[NBTList[Any, AnyTag]]) {
+				case (Success(list), _) => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
 				case (f@Failure(_), _) => f
 			}
 		}
@@ -208,7 +205,7 @@ object IOTools {
 	private def readIntArray(stream: DataInputStream): Try[Array[Int]] = {
 		Try(stream.readInt()).map(length => {
 			val array = new Array[Int](length)
-			val res = (0 until  length).foldLeft(Success(Unit): Try[Unit]){
+			val res = (0 until length).foldLeft(Success(Unit): Try[Unit]) {
 				case (Success(_), i) => Try(array(i) = stream.readInt())
 				case (f@Failure(_), _) => f
 			}
@@ -216,20 +213,23 @@ object IOTools {
 		}).flatten
 	}
 
-	private def readType(stream: DataInputStream): Try[Byte] = Try(stream.readByte())
+	private def readType(stream: DataInputStream): Try[NBTType] =
+		Try(NBTType.idToType(stream.readByte()).getOrElse(throw new IOException("Read type on NBT is not valid")))
 
-	private def readTag(stream: DataInputStream, nbtType: Byte): Try[Tag[_]] = nbtType match {
-		case Ids.Byte => Try(NBTByte(stream.readByte()))
-		case Ids.Short => Try(NBTShort(stream.readShort()))
-		case Ids.Int => Try(NBTInt(stream.readInt()))
-		case Ids.Long => Try(NBTLong(stream.readLong()))
-		case Ids.Float => Try(NBTFloat(stream.readFloat()))
-		case Ids.Double => Try(NBTDouble(stream.readDouble()))
-		case Ids.ByteArray => readByteArray(stream).map(a => NBTByteArray(a))
-		case Ids.String => readString(stream).map(s => NBTString(s))
-		case Ids.List => readList(stream)
-		case Ids.Compound => readCompound(stream, NBTCompound(Seq()))
-		case Ids.IntArray => readIntArray(stream).map(a => NBTIntArray(a))
-		case Ids.End => throw new IOException("Unexpected end tag")
+	private def readTag(stream: DataInputStream, nbtType: NBTType): Try[NBTTag] =  (nbtType: @unchecked)  match {
+		case NBTView.TAG_BYTE => Try(NBTByte(stream.readByte()))
+		case NBTView.TAG_SHORT => Try(NBTShort(stream.readShort()))
+		case NBTView.TAG_INT => Try(NBTInt(stream.readInt()))
+		case NBTView.TAG_LONG => Try(NBTLong(stream.readLong()))
+		case NBTView.TAG_FLOAT => Try(NBTFloat(stream.readFloat()))
+		case NBTView.TAG_DOUBLE => Try(NBTDouble(stream.readDouble()))
+		case NBTView.TAG_BYTE_ARRAY => readByteArray(stream).map(a => NBTByteArray(a))
+		case NBTView.TAG_STRING => readString(stream).map(s => NBTString(s))
+		case NBTView.TAG_LIST => readList(stream)
+		case NBTView.TAG_COMPOUND => readCompound(stream, NBTCompound(Map()))
+		case NBTView.TAG_INT_ARRAY => readIntArray(stream).map(a => NBTIntArray(a))
+		case NBTView.TAG_END => throw new IOException("Unexpected end tag")
+		case NBTView.AnyTag => throw new IOException("Got anyTag type. This should not happen")
+		case _: NBTView.NBTListType => throw new IOException("Got unknown list type. This should not happen")
 	}
 }

@@ -23,23 +23,22 @@ package io.github.katrix.typenbt.parser
 import scala.annotation.tailrec
 import scala.util.parsing.combinator.RegexParsers
 
-import io.github.katrix.typenbt.misc.AST
-import io.github.katrix.typenbt.misc.AST._
-import io.github.katrix.typenbt.nbt
+import io.github.katrix.typenbt.nbt._
 
 object Mojangson {
 
-	def mojangsonToAST(mojangson: String): Parser.ParseResult[NBTCompound] = Parser.parse(Parser.wholeNbt, mojangson)
-	def mojangsonToNBT(mojangson: String): Either[String, nbt.NBTTag] = mojangsonToAST(mojangson) match {
-		case Parser.Success(AST(unknownNbt), _) => Right(unknownNbt)
-		case Parser.Success(errorAST, _) => Left("Could not convert AST to NBT")
-		case Parser.Error(msg, _) => Left(msg)
-		case Parser.Failure(msg, _) => Left(msg)
+	def mojangsonToNBT(mojangson: String): Either[String, NBTTag] = Parser.parse(Parser.wholeNbt, mojangson) match {
+		case Parser.Success(unknownNbt, _) => Right(unknownNbt)
+		case Parser.NoSuccess(msg, _) => Left(msg)
 	}
 
-	def nbtToMojangson(tag: nbt.NBTTag): String = toMojangson(AST(tag))
+	def nbtToMojangson(tag: NBTTag): String = toMojangson(tag)
 
 	object Parser extends RegexParsers {
+
+		type NamedTag = (String, NBTTag)
+		type IndexedTag = (Int, NBTTag)
+		type AnyTag = NBTView.AnyTag.NBT
 
 		def stringLiteral: Parser[String] = ("\"" + """([^"\p{Cntrl}\\]|\\[\\'"bfnrt]|\\u[a-fA-F0-9]{4})*+""" + "\"").r
 		def wholeNumber: Parser[Long] = """-?\d+""".r ^^ {_.toLong}
@@ -68,17 +67,17 @@ object Mojangson {
 		def nbtDouble: Parser[NBTDouble] = floatingPoint <~ doubleEnd ^^ (numb => NBTDouble(numb))
 		def nbtInt: Parser[NBTInt] = wholeNumber ^^ (numb => NBTInt(numb.toInt))
 
-		def nbtNumber: Parser[Tag[_]] = nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt
+		def nbtNumber: Parser[NBTTag] = nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt
 		def nbtString: Parser[NBTString] = stringLiteral ^^ (s => NBTString(s.substring(1, s.length - 1)))
 
-		def nbtTag: Parser[Tag[_]] = nbtNumber | nbtString | nbtCompound | nbtList
+		def nbtTag: Parser[NBTTag] = nbtNumber | nbtString | nbtCompound | nbtList
 
-		def nbtNamedTag: Parser[NamedTag] = tagName ~ colon ~ nbtTag ^^ { case name ~ _ ~ tag => NamedTag(name, tag) }
-		def nbtCompound: Parser[NBTCompound] = compoundStart ~> repsep(nbtNamedTag, comma) <~ compoundEnd ^^ (NBTCompound(_))
+		def nbtNamedTag: Parser[NamedTag] = tagName ~ colon ~ nbtTag ^^ { case name ~ _ ~ tag => (name, tag) }
+		def nbtCompound: Parser[NBTCompound] = compoundStart ~> repsep(nbtNamedTag, comma) <~ compoundEnd ^^ (xs => NBTCompound(xs.toMap))
 
-		def indexedTag: Parser[(Int, Tag[_])] = tagIndex ~ colon ~ nbtTag ^^ { case index ~ _ ~ tag => index -> tag }
-		def nbtList: Parser[NBTList] = listStart ~> repsep(indexedTag, comma) <~ listEnd ^? {
-			case list@((_, head)) :: tail if list.forall(a => a._2.id == head.id) && {
+		def indexedTag: Parser[IndexedTag] = tagIndex ~ colon ~ nbtTag ^^ { case index ~ _ ~ tag => index -> tag }
+		def nbtList: Parser[NBTList[Any, NBTTag.Aux[Any]]] = listStart ~> repsep(indexedTag, comma) <~ listEnd ^? {
+			case list@((_, head)) :: tail if list.forall(a => a._2.nbtType.id == head.nbtType.id) && {
 				@tailrec
 				def checkIndex(rest: List[(Int, _)], i: Int): Boolean = rest match {
 					case Nil => true
@@ -87,14 +86,15 @@ object Mojangson {
 				}
 
 				checkIndex(list, 0)
-			} => NBTList(head.id, list.map(_._2))
-			case Nil => NBTList(Ids.Byte, Seq()) //We use byte if there are no elements
+			} => NBTList[Any, AnyTag](list.map(_._2).asInstanceOf[List[AnyTag]])(NBTView.TAG_LIST,
+				list.head._2.nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])
+			case Nil => NBTList[Byte, NBTByte](Seq()).asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
 		}
 
 		def wholeNbt: Parser[NBTCompound] = phrase(nbtCompound)
 	}
 
-	def toMojangson(tag: Tag[_]): String = tag match {
+	def toMojangson(tag: NBTTag): String = tag match {
 		case NBTByte(b) => s"${b}b"
 		case NBTShort(s) => s"${s}s"
 		case NBTInt(i) => s"$i"
@@ -103,7 +103,7 @@ object Mojangson {
 		case NBTDouble(d) => s"${d}d"
 		case NBTByteArray(array) => s"[${array.length} bytes]"
 		case NBTString(s) => s""""$s""""
-		case NBTList(_, list) =>
+		case NBTList(list) =>
 			val b = new StringBuilder("[")
 
 			for((tag, index) <- list.zipWithIndex) {
@@ -117,7 +117,7 @@ object Mojangson {
 		case NBTCompound(tags) =>
 			val b = new StringBuilder("{")
 
-			for(NamedTag((name, tag)) <- tags) {
+			for(((name, tag)) <- tags) {
 				if(b.length != 1) {
 					b.append(',')
 				}
@@ -131,14 +131,14 @@ object Mojangson {
 			b.dropRight(1).append(']').mkString
 	}
 
-	def toMojangsonIndent(tag: Tag[_], indentLevel: Int, indentChar: Char): String = {
+	def toMojangsonIndent(tag: NBTTag, indentLevel: Int, indentChar: Char): String = {
 		def indent(b: StringBuilder, indentLevel: Int): Unit = {
 			b.append('\n')
 			(0 to indentLevel).foreach(i => b.append(indentChar))
 		}
 
 		tag match {
-			case NBTList(_, list) =>
+			case NBTList(list) =>
 				val b = new StringBuilder("[")
 
 				for((tag, index) <- list.zipWithIndex) {
@@ -157,7 +157,7 @@ object Mojangson {
 			case NBTCompound(tags) =>
 				val b = new StringBuilder("{")
 
-				for(NamedTag((name, tag)) <- tags) {
+				for(((name, tag)) <- tags) {
 					if(b.length != 1) {
 						b.append(',')
 					}

@@ -141,7 +141,7 @@ trait NBTTypeInstances {
 
 
 	//We allow creating new list types for type sake
-	abstract class NBTListType extends NBTType {
+	sealed abstract class NBTListType extends NBTType {
 		type ElementRepr
 		type ElementNBT <: NBTTag.Aux[ElementRepr]
 		override type NBT = NBTList[ElementRepr, ElementNBT]
