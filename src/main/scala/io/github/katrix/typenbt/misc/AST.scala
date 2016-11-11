@@ -54,8 +54,8 @@ object AST {
 				val sequenced = sequence(list.map(unapply))
 				//Biggest hack ever
 				sequenced.flatMap(tagList => nbt.NBTType.idToType(id).map(listType =>
-					nbt.NBTList[Nothing, nbt.NBTTag.Aux[Nothing]](tagList.asInstanceOf[Seq[nbt.NBTTag.Aux[Nothing]]])
-						(nbt.NBTView.TAG_LIST, listType.asInstanceOf[nbt.NBTType.Aux[Nothing, nbt.NBTTag.Aux[Nothing]]])))
+					nbt.NBTList[Any, nbt.NBTTag.Aux[Any]](tagList.asInstanceOf[Seq[nbt.NBTTag.Aux[Any]]])
+						(nbt.NBTView.TAG_LIST, listType.asInstanceOf[nbt.NBTType.Aux[Any, nbt.NBTTag.Aux[Any]]])))
 			case NBTCompound(tags) =>
 				val converted = tags.map{
 					case NamedTag((name, AST(nbtTag))) => Some(name -> nbtTag)

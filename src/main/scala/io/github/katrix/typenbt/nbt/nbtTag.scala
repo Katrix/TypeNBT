@@ -37,6 +37,11 @@ object NBTTag {
 	type Aux[Repr0] = NBTTag {type Repr = Repr0}
 }
 
+sealed trait NBTEnd extends NBTTag {
+	override type Repr = Nothing
+	override type Self = NBTEnd
+	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_END
+}
 final case class NBTByte(value: Byte) extends NBTTag {
 	override type Repr = Byte
 	override type Self = NBTByte

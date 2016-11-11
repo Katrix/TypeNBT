@@ -52,13 +52,20 @@ object NBTType {
 
 trait NBTTypeInstances {
 
+	case object AnyTag extends NBTType {
+		override type Repr = Any
+		override type NBT = NBTTag.Aux[Any]
+		override def id: Byte = throw new IllegalStateException("Tried to get ID for any tag")
+		override def apply(v: Repr): NBT = throw new IllegalStateException("Tried to construct any tag")
+	}
+
 	//Official names for them
 	case object TAG_END extends NBTType {
 		override type Repr = Nothing
-		override type NBT = NBTTag.Aux[Nothing]
+		override type NBT = NBTEnd
 		override def id: Byte = 0
-		override def apply(v: Nothing): NBTTag.Aux[Nothing] = throw new IllegalStateException("Tried to construct nothing tag")
-		override def unapply(arg: NBT): Option[Repr] = throw new IllegalStateException("Tried to deconstruct nothing tag")
+		override def apply(v: Nothing): NBT = throw new IllegalStateException("Tried to construct end tag")
+		override def unapply(arg: NBT): Option[Repr] = throw new IllegalStateException("Tried to deconstruct end tag")
 	}
 
 	implicit case object TAG_BYTE extends NBTType {
@@ -147,9 +154,9 @@ trait NBTTypeInstances {
 
 	//A raw list with no checks. If used wrong, this WILL cause problems
 	case object TAG_LIST extends NBTListType {
-		override type ElementRepr = Nothing
-		override type ElementNBT = NBTTag.Aux[Nothing]
-		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.TAG_END
+		override type ElementRepr = Any
+		override type ElementNBT = NBTTag.Aux[Any]
+		override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.AnyTag
 	}
 
 	implicit def listType[ElementRepr0, ElementNBT0 <: NBTTag.Aux[ElementRepr0]](
