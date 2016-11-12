@@ -70,10 +70,11 @@ object Mojangson {
 		def nbtNumber: Parser[NBTTag] = nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt
 		def nbtString: Parser[NBTString] = stringLiteral ^^ (s => NBTString(s.substring(1, s.length - 1)))
 
-		def nbtTag: Parser[NBTTag] = nbtNumber | nbtString | nbtCompound | nbtList
+		def nbtTag: Parser[NBTTag] = nbtNumber | nbtString | nbtCompound | nbtList | nbtIntArray
 
 		def nbtNamedTag: Parser[NamedTag] = tagName ~ colon ~ nbtTag ^^ { case name ~ _ ~ tag => (name, tag) }
 		def nbtCompound: Parser[NBTCompound] = compoundStart ~> repsep(nbtNamedTag, comma) <~ compoundEnd ^^ (xs => NBTCompound(xs.toMap))
+		def nbtIntArray: Parser[NBTIntArray] = listStart ~> repsep(wholeNumber, comma) <~ listEnd ^^ {xs => NBTIntArray(xs.map(_.toInt).toVector)}
 
 		def indexedTag: Parser[IndexedTag] = tagIndex ~ colon ~ nbtTag ^^ { case index ~ _ ~ tag => index -> tag }
 		def nbtList: Parser[NBTList[Any, NBTTag.Aux[Any]]] = listStart ~> repsep(indexedTag, comma) <~ listEnd ^? {
@@ -124,17 +125,24 @@ object Mojangson {
 				b.append(s"$name:${toMojangson(tag)}")
 			}
 
-			b.append('}').toString
+			b.append('}').mkString
 		case NBTIntArray(array) =>
 			val b = new StringBuilder("[")
-			array.foreach(i => b.append(s"$i,"))
-			b.dropRight(1).append(']').mkString
+
+			for(i <- array) {
+				if(b.length != 1) {
+					b.append(',')
+				}
+				b.append(s"$i")
+			}
+
+			b.append(']').mkString
 	}
 
 	def toMojangsonIndent(tag: NBTTag, indentLevel: Int, indentChar: Char): String = {
 		def indent(b: StringBuilder, indentLevel: Int): Unit = {
 			b.append('\n')
-			(0 to indentLevel).foreach(i => b.append(indentChar))
+			(0 to indentLevel).foreach(_ => b.append(indentChar))
 		}
 
 		tag match {
