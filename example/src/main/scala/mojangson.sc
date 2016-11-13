@@ -4,14 +4,6 @@ import io.github.katrix.typenbt.parser.Mojangson
 
 val nbtString = """{ }"""
 
-def scalaCode(nbt: NBTTag): String = nbt match {
-	case NBTCompound(tags) => s"NBTCompound(Map(${tags.map{case (name, tag) => s""""$name" -> ${scalaCode(tag)}"""}.mkString(", ")}))"
-	case NBTList(tags) => s"NBTList(${tags.map(scalaCode(_)).toString()})"
-	case NBTString(str) => s"""NBTString("$str")"""
-	case NBTFloat(f) => s"NBTFloat(${f}F)"
-	case _ => nbt.toString
-}
-
 val list = NBTList((1 until 10).map(_.nbt))
 
 val compund = NBTCompound()
@@ -24,9 +16,6 @@ val compund = NBTCompound()
 	.set("string", "test".nbt)
 	.set("list", list)
 
-scalaCode(compund)
-
-Mojangson.Parser.skipWhitespace
 val toMojangson = Mojangson.nbtToMojangson(compund)
 Mojangson.mojangsonToNBT(toMojangson)
 Mojangson.Parser.parse(Mojangson.Parser.nbtCompound, nbtString)
