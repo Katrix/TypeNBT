@@ -18,7 +18,7 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.katrix.typenbt.parser
+package net.katsstuff.typenbt.parser
 
 import org.scalactic.Equality
 import org.scalatest.enablers.Containing
@@ -26,8 +26,8 @@ import org.scalatest.matchers.{BeMatcher, MatchResult}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 
-import io.github.katrix.typenbt.nbt._
-import io.github.katrix.typenbt.parser.Mojangson.Parser
+import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt.parser.Mojangson.Parser
 import org.scalacheck._
 import org.scalactic.anyvals.PosInt
 
@@ -187,7 +187,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	test("nbtNamedTag should parse a tagname, followed by a colon and then a tag") {
 		forAll {(nbtTag: NBTTag, tagName: String) =>
 			whenever(!tagName.contains(':') && tagName.nonEmpty && !isInvalidMojangsonTag(nbtTag)) {
-				val string = s"$tagName:${Mojangson.nbtToMojangson(nbtTag)}"
+				val string = s"$tagName:${Mojangson.toMojangson(nbtTag)}"
 				val parsed = Parser.parseAll(Parser.nbtNamedTag, string)
 				parsed should contain ((tagName, nbtTag))
 			}
@@ -197,7 +197,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	test("indexedTag should parse a tagname, followed by a colon and then a tag") {
 		forAll {(nbtTag: NBTTag, tagIndex: Int) =>
 			whenever(tagIndex >= 0 && !isInvalidMojangsonTag(nbtTag)) {
-				val string = s"$tagIndex:${Mojangson.nbtToMojangson(nbtTag)}"
+				val string = s"$tagIndex:${Mojangson.toMojangson(nbtTag)}"
 				val parsed = Parser.parseAll(Parser.indexedTag, string)
 				parsed should contain ((tagIndex, nbtTag))
 			}
@@ -209,7 +209,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 		implicit val generatorDrivenConfig  = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
 		forAll {nbtTag: NBTTag =>
 			whenever(!isInvalidMojangsonTag(nbtTag)) {
-				val string = Mojangson.nbtToMojangson(nbtTag)
+				val string = Mojangson.toMojangson(nbtTag)
 				val parsed = Parser.parseAll(Parser.nbtTag, string)
 				parsed should contain (nbtTag)
 			}

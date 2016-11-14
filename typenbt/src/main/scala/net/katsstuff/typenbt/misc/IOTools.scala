@@ -18,7 +18,7 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.katrix.typenbt.misc
+package net.katsstuff.typenbt.misc
 
 import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
 import java.nio.charset.StandardCharsets
@@ -27,21 +27,21 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-import io.github.katrix.typenbt.nbt._
+import net.katsstuff.typenbt.nbt._
 
 object IOTools {
 
 	private final val UTF8 = StandardCharsets.UTF_8
 
 	/**
-		* Writes an [[NBTCompound]] to an [[OutputStream]]
+		* Writes an [[net.katsstuff.typenbt.nbt.NBTCompound]] to an [[java.io.OutputStream]]
 		*
 		* @param stream The stream to write to
 		* @param compound The tag to write out
-		* @param rootName The name of the root of the NBT. Usually not seen.
+		* @param rootName The name of the root of the NBT. Usually blank.
 		* @param gzip If the stream should be Gziped or not
 		*/
-	def writeTo(stream: OutputStream, compound: NBTCompound, rootName: String, gzip: Boolean): Try[Unit] = {
+	def writeTo(stream: OutputStream, compound: NBTCompound, rootName: String = "", gzip: Boolean): Try[Unit] = {
 		val newStream = new DataOutputStream(if(gzip) new BufferedOutputStream(new GZIPOutputStream(stream))
 		else stream)
 		try {
@@ -57,11 +57,11 @@ object IOTools {
 	}
 
 	/**
-		* Reads an [[NBTCompound]] from an [[InputStream]]
+		* Reads an [[net.katsstuff.typenbt.nbt.NBTCompound]] from an [[java.io.InputStream]]
 		*
 		* @param stream The stream to read from
-		* @param gzip If the [[NBTCompound]] to read from the stream is GZiped or not
-		* @return A tuple compromising of the [[NBTCompound]] read, as well as the root name
+		* @param gzip If the [[net.katsstuff.typenbt.nbt.NBTCompound]] to read from the stream is GZiped or not
+		* @return A tuple compromising of the [[net.katsstuff.typenbt.nbt.NBTCompound]] read, as well as the root name
 		*/
 	def readFrom(stream: InputStream, gzip: Boolean): Try[(String, NBTCompound)] = {
 		val newStream = new DataInputStream(if(gzip) new BufferedInputStream(new GZIPInputStream(stream))
@@ -176,7 +176,7 @@ object IOTools {
 		readBytes.map(u => new String(characters, UTF8))
 	})
 
-	type AnyTag = NBTView.AnyTag.NBT
+	private type AnyTag = NBTView.AnyTag.NBT
 
 	private def readList(stream: DataInputStream): Try[NBTList[Any, AnyTag]] = {
 		val ret = for {

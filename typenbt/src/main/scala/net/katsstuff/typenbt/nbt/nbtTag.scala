@@ -18,18 +18,29 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.katrix.typenbt.nbt
+package net.katsstuff.typenbt.nbt
 
 import java.util.UUID
 
 import scala.annotation.tailrec
 
-import shapeless.TypeCase
+import shapeless.Typeable
 
 sealed trait NBTTag {
+	/**
+		* The value that this [[NBTTag]] holds.
+		*/
 	type Repr
 	type Self <: NBTTag.Aux[Repr]
+
+	/**
+		* The value of this [[NBTTag]]
+		*/
 	def value: Repr
+
+	/**
+		* The type of this [[NBTTag]]
+		*/
 	def nbtType: NBTType.Aux[Repr, Self]
 }
 
@@ -91,6 +102,9 @@ final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val
 	override type Repr = Seq[ElementNBT]
 	override type Self = NBTList[ElementRepr, ElementNBT]
 
+	/**
+		* Gets the [[NBTTag]] at the specified index.
+		*/
 	def apply(i: Int): ElementNBT = value(i)
 
 	/**
@@ -102,6 +116,10 @@ final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val
 		* Creates a new NBTList with this element appended
 		*/
 	def :+(value: ElementNBT): NBTList[ElementRepr, ElementNBT] = NBTList(this.value :+ value)
+
+	/**
+		* Appends the specific [[NBTTag]]s to this [[NBTList]]
+		*/
 	def ++(values: ElementNBT*): NBTList[ElementRepr, ElementNBT] = NBTList(this.value ++ values)
 
 	/**
@@ -130,8 +148,14 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*/
 	def size: Int = value.size
 
+	/**
+		* Creates a new [[NBTCompound]] with the pair appended.
+		*/
 	def +(tuple: (String, NBTTag)): NBTCompound = NBTCompound(value + tuple)
 
+	/**
+		* Creates a new [[NBTCompound]] with the key-value pair appended.
+		*/
 	def updated(key: String, tag: NBTTag): NBTCompound = NBTCompound(value.updated(key, tag))
 
 	/**
@@ -139,7 +163,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @param key The key to bind to.
 		* @param tag The tag to set.
-		* @return An [[Option]] with the previous value of the used key, or None if the key was not already used.
+		* @return An [[scala.Option]] with the previous value of the used key, or None if the key was not already used.
 		*/
 	def set(key: String, tag: NBTTag): NBTCompound = updated(key, tag)
 
@@ -165,7 +189,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* The key of the two tags are key + "Most" for the most significant bits,
 		* and key + "Least" for the least significant bits.
 		*
-		* @return The same things goes for this as for [[set]], only here you have a [[Seq]] instead of an [[Option]]
+		* @return The same things goes for this as for [[set]], only here you have a [[scala.collection.Seq]] instead of an [[scala.Option]]
 		*/
 	def setUUID(key: String, value: UUID): NBTCompound = {
 		val most = NBTLong(value.getMostSignificantBits)
@@ -180,19 +204,20 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 	def apply(key: String): NBTTag = value(key)
 
 	/**
-		* Get a value from this compound
+		* Get a tag from this [[NBTCompound]]
 		*/
 	def get(key: String): Option[NBTTag] = value.get(key)
 
-	def getValue[Repr, NBT <: NBTTag](key: String)(implicit from: NBTView.Aux[Repr, NBT], tpe: TypeCase[NBT]): Option[Repr] = {
-		get(key).flatMap {
-			case tpe(nbt) => from.unapply(nbt)
-			case _ => None
-		}
+	/**
+		* Gets a value from this if it exists at the specified key,
+		* and it can be converted to the specified value.
+		*/
+	def getValue[Repr, NBT <: NBTTag](key: String)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+		get(key).flatMap(nbt => tpe.cast(nbt).flatMap(from.unapply))
 	}
 
 	/**
-		* Tries to get an [[UUID]] created with [[setUUID]].
+		* Tries to get an [[java.util.UUID]] created with [[setUUID]].
 		*/
 	def getUUID(key: String): Option[UUID] = {
 		get(s"${key}Most")
@@ -201,18 +226,39 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 			}.flatten
 	}
 
+	/**
+		* Tries to get a [[NBTTag]] nested in multiple [[NBTCompound]].
+		*
+		* Example:
+		*
+		* {{{
+		* val compound = NBTCompound().set("first" NBTCompound().set("second", NBTString("hi")))
+		* assert(compound.getRecursive("first", "second") == NBTString("hi"))
+		* }}}
+		*/
 	@tailrec
 	def getRecursive(keys: String*): Option[NBTTag] = {
 		val tail = keys.tail
 		if(tail == Nil) get(keys.head)
-		else getRecursive(tail: _*)
+		else get(keys.head) match {
+			case Some(compound: NBTCompound) => compound.getRecursive(tail: _*)
+			case _ => None
+		}
 	}
 
+	/**
+		* Same as [[getRecursive]], but with a value instead of a [[NBTTag]].
+		*
+		* @see [[getRecursive]]
+		*/
 	@tailrec
-	def getRecursiveValue[Repr, NBT <: NBTTag](key: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: TypeCase[NBT]): Option[Repr] = {
-		val tail = key.tail
-		if(tail == Nil) getValue[Repr, NBT](key.head)
-		else getRecursiveValue[Repr, NBT](key.tail: _*)
+	def getRecursiveValue[Repr, NBT <: NBTTag](keys: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+		val tail = keys.tail
+		if(tail == Nil) getValue[Repr, NBT](keys.head)
+		else get(keys.head) match {
+			case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr, NBT](tail: _*)
+			case _ => None
+		}
 	}
 
 	/**
@@ -268,8 +314,14 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		NBTCompound(inner(value.toSeq, other.value.toSeq, Map()))
 	}
 
+	/**
+		* Merges this [[NBTCompound]] with another, and if a conflict arises, uses the second one.
+		*/
 	def merge(other: NBTCompound): NBTCompound = mergeAdvanced(other)((first, second) => second)
 
+	/**
+		* Checks if this [[NBTCompound]] has a specific key.
+		*/
 	def hasKey(key: String): Boolean = value.contains(key)
 }
 

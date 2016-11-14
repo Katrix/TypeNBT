@@ -1,17 +1,23 @@
 lazy val commonSettings = Seq(
 	scalaVersion := "2.12.0",
 	libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-	libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.2"
+	libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.2"
 )
 
-lazy val root = (project in file(".")).settings(commonSettings: _*).settings(
+lazy val root = project.in(file(".")).aggregate(typenbtJVM, typenbtJS).settings(
+	publish := {},
+	publishLocal := {}
+)
+
+lazy val typenbt = crossProject.crossType(CrossType.Pure).settings(commonSettings: _*).settings(
 	name := "TypeNBT",
 	organization := "net.katsstuff",
-	version := "0.1-SNAPSHOT",
+	version := "0.1",
+	crossScalaVersions := Seq("2.11.8", "2.12.0"),
 
-	libraryDependencies += "org.scalactic" %% "scalactic" % "3.0.0" % Test,
-	libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.0" % Test,
-	libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.13.4" % Test,
+	libraryDependencies += "org.scalactic" %%% "scalactic" % "3.0.0" % Test,
+	libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.0" % Test,
+	libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.13.4" % Test,
 
 	sonatypeProfileName := "Katrix",
 	publishMavenStyle := true,
@@ -41,6 +47,9 @@ lazy val root = (project in file(".")).settings(commonSettings: _*).settings(
 	}
 )
 
-lazy val example = project.dependsOn(root).settings(commonSettings: _*).settings(
+lazy val typenbtJVM = typenbt.jvm
+lazy val typenbtJS = typenbt.js
+
+lazy val example = project.dependsOn(typenbtJVM).settings(commonSettings: _*).settings(
 
 )

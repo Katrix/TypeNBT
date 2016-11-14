@@ -18,8 +18,11 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.katrix.typenbt.nbt
+package net.katsstuff.typenbt.nbt
 
+/**
+	* A specific type of [[NBTTag]]. Contains constructor and deconstructer, in addition to the numerical id.
+	*/
 sealed trait NBTType extends NBTView {
 	type NBT <: NBTTag.Aux[Repr]
 	def id: Byte
@@ -33,6 +36,9 @@ object NBTType {
 
 	def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = nbtType
 
+	/**
+		* Convert a numerical id to a [[NBTType]]
+		*/
 	def idToType(i: Int): Option[NBTType] = i match {
 		case 0 => Some(NBTView.TAG_END)
 		case 1 => Some(NBTView.TAG_BYTE)

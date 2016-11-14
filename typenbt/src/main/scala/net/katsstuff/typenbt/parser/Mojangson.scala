@@ -18,21 +18,22 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package io.github.katrix.typenbt.parser
+package net.katsstuff.typenbt.parser
 
 import scala.annotation.tailrec
 import scala.util.parsing.combinator.RegexParsers
 
-import io.github.katrix.typenbt.nbt._
+import net.katsstuff.typenbt.nbt._
 
 object Mojangson {
 
-	def mojangsonToNBT(mojangson: String): Either[String, NBTTag] = Parser.parse(Parser.wholeNbt, mojangson) match {
+	/**
+		* Parse mojangson into a [[net.katsstuff.typenbt.nbt.NBTTag]]
+		*/
+	def fromMojangson(mojangson: String): Either[String, NBTTag] = Parser.parse(Parser.wholeNbt, mojangson) match {
 		case Parser.Success(unknownNbt, _) => Right(unknownNbt)
 		case Parser.NoSuccess(msg, _) => Left(msg)
 	}
-
-	def nbtToMojangson(tag: NBTTag): String = toMojangson(tag)
 
 	object Parser extends RegexParsers {
 
@@ -95,6 +96,9 @@ object Mojangson {
 		def wholeNbt: Parser[NBTCompound] = phrase(nbtCompound)
 	}
 
+	/**
+		* Convert a [[net.katsstuff.typenbt.nbt.NBTTag]] to mojangson.
+		*/
 	def toMojangson(tag: NBTTag): String = tag match {
 		case NBTByte(b) => s"${b}b"
 		case NBTShort(s) => s"${s}s"
@@ -139,7 +143,13 @@ object Mojangson {
 			b.append(']').mkString
 	}
 
-	def toMojangsonIndent(tag: NBTTag, indentLevel: Int, indentChar: Char): String = {
+	/**
+		* Convert a [[net.katsstuff.typenbt.nbt.NBTTag]] to mojangson with indentation
+		* @param tag The tag to convert
+		* @param indentLevel How many indent characters to insert per level
+		* @param indentChar The indent character to use
+		*/
+	def toMojangsonIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	'): String = {
 		def indent(b: StringBuilder, indentLevel: Int): Unit = {
 			b.append('\n')
 			(0 to indentLevel).foreach(_ => b.append(indentChar))
