@@ -1,6 +1,6 @@
 lazy val commonSettings = Seq(
 	scalaVersion := "2.12.0",
-	libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
+	libraryDependencies += "com.lihaoyi" %%% "fastparse" % "0.4.2",
 	libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.2"
 )
 
@@ -51,5 +51,5 @@ lazy val typenbtJVM = typenbt.jvm
 lazy val typenbtJS = typenbt.js
 
 lazy val example = project.dependsOn(typenbtJVM).settings(commonSettings: _*).settings(
-
+	name := "examples"
 )

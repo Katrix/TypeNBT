@@ -52,14 +52,26 @@ trait NBTGenerator {
 			nbtType: NBTType.Aux[Seq[NBT], NBTList[Repr, NBT]],
 			nbtElementType: NBTType.Aux[Repr, NBT]
 	): Gen[NBTList[Repr, NBT]] = for {
-		v <- arbitrary[NBT]
-		l <- oneOf(Gen.const(NBTList[Repr, NBT](Seq())), genNbtList[Repr, NBT])
+		l <- oneOf(Gen.const(NBTList()), nonEmptyNbtList[Repr, NBT](NBTList()))
 	} yield l
 
-	val genNbtCompound: Gen[NBTCompound] = for {
-		k <- arbitrary[String].suchThat(_.nonEmpty)
+	def nonEmptyNbtList[Repr, NBT <: NBTTag.Aux[Repr] : Arbitrary](list: NBTList[Repr, NBT])(
+			implicit
+			nbtType: NBTType.Aux[Seq[NBT], NBTList[Repr, NBT]],
+			nbtElementType: NBTType.Aux[Repr, NBT]
+	): Gen[NBTList[Repr, NBT]] = for {
+		v <- arbitrary[NBT]
+		l <- oneOf(Gen.const(list :+ v), nonEmptyNbtList[Repr, NBT](list :+ v))
+	} yield l
+
+	def genNonEmptyNbtCompound(compound: NBTCompound): Gen[NBTCompound] = for {
+		k <- arbitrary[String].suchThat(string => string.nonEmpty && !string.matches("""\s""") && string.contains(":"))
 		v <- arbitrary[NBTTag]
-		m <- oneOf(Gen.const(NBTCompound(Map())), genNbtCompound.map(_.set(k, v)))
+		m <- oneOf(Gen.const(compound), genNonEmptyNbtCompound(compound.set(k, v)))
+	} yield m
+
+	val genNbtCompound: Gen[NBTCompound] = for {
+		m <- oneOf(Gen.const(NBTCompound()), genNonEmptyNbtCompound(NBTCompound()))
 	} yield m
 
 	implicit val arbitraryNbtCompound: Arbitrary[NBTCompound] = Arbitrary(genNbtCompound)
@@ -75,6 +87,19 @@ trait NBTGenerator {
 		genNbtList[String, NBTString],
 		genNbtList[IndexedSeq[Int], NBTIntArray],
 		genNbtList[Map[String, NBTTag], NBTCompound]
+	)
+
+	val genNonEmptyNbtList: Gen[NBTList[_, _ <: NBTTag]] = oneOf(
+		nonEmptyNbtList[Byte, NBTByte](NBTList()),
+		nonEmptyNbtList[Short, NBTShort](NBTList()),
+		nonEmptyNbtList[Int, NBTInt](NBTList()),
+		nonEmptyNbtList[Long, NBTLong](NBTList()),
+		nonEmptyNbtList[Float, NBTFloat](NBTList()),
+		nonEmptyNbtList[Double, NBTDouble](NBTList()),
+		nonEmptyNbtList[IndexedSeq[Byte], NBTByteArray](NBTList()),
+		nonEmptyNbtList[String, NBTString](NBTList()),
+		nonEmptyNbtList[IndexedSeq[Int], NBTIntArray](NBTList()),
+		nonEmptyNbtList[Map[String, NBTTag], NBTCompound](NBTList())
 	)
 
 	val genNbt: Gen[NBTTag] = oneOf(

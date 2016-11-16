@@ -20,198 +20,236 @@
  */
 package net.katsstuff.typenbt.parser
 
+import org.scalacheck._
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalactic.Equality
+import org.scalactic.anyvals.PosInt
 import org.scalatest.enablers.Containing
 import org.scalatest.matchers.{BeMatcher, MatchResult}
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 
+import fastparse.noApi._
 import net.katsstuff.typenbt.nbt._
-import net.katsstuff.typenbt.parser.Mojangson.Parser
-import org.scalacheck._
-import org.scalactic.anyvals.PosInt
+import net.katsstuff.typenbt.parser.Mojangson.MojangsonParser
 
-class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with NBTGenerator { self =>
+class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with NBTGenerator {
+	self =>
 
-	val successful: BeMatcher[Parser.ParseResult[_]] =
-		BeMatcher[Parser.ParseResult[_]](left => MatchResult(left.successful, "Parser was not successful", "Parser was successful"))
+	val successful: BeMatcher[Parsed[_]] =
+		BeMatcher[Parsed[_]](left => MatchResult(left match {
+			case Parsed.Success(_, _) => true
+			case Parsed.Failure(_, _, _) => false
+		}, "Parser was not successful", "Parser was successful"))
 
-	implicit def parseResultContainer[A : Equality] = new Containing[Parser.ParseResult[A]] {
-		override def contains(container: Parser.ParseResult[A], element: Any): Boolean = container.successful && implicitly[Equality[A]].areEqual(container.get, element)
-		override def containsOneOf(container: Parser.ParseResult[A], elements: Seq[Any]): Boolean = {
-			val eqal = implicitly[Equality[A]]
-			if(container.successful) {
-				val gotten = container.get
-				elements.exists(eqal.areEqual(gotten, _))
-			} else false
+	implicit def parseResultContainer[A: Equality] = new Containing[Parsed[A]] {
+		override def contains(container: Parsed[A], element: Any): Boolean = {
+			container match {
+				case Parsed.Failure(_, _, _) => false
+				case Parsed.Success(parsedVal, _) => implicitly[Equality[A]].areEqual(parsedVal, element)
+			}
 		}
-		override def containsNoneOf(container: Parser.ParseResult[A], elements: Seq[Any]): Boolean = {
+		override def containsOneOf(container: Parsed[A], elements: Seq[Any]): Boolean = {
 			val eqal = implicitly[Equality[A]]
-			if(container.successful) {
-				val gotten = container.get
-				elements.forall(!eqal.areEqual(gotten, _))
-			} else true
+			container match {
+				case Parsed.Failure(_, _, _) => false
+				case Parsed.Success(parsedVal, _) => elements.exists(eqal.areEqual(parsedVal, _))
+			}
+		}
+		override def containsNoneOf(container: Parsed[A], elements: Seq[Any]): Boolean = {
+			val eqal = implicitly[Equality[A]]
+			container match {
+				case Parsed.Failure(_, _, _) => false
+				case Parsed.Success(parsedVal, _) => elements.forall(!eqal.areEqual(parsedVal, _))
+			}
 		}
 	}
 
-	def isInvalidMojangsonTag(tag: NBTTag): Boolean = tag match {
-		case NBTByteArray(_) => true
-		case NBTList(xs) => xs.exists(isInvalidMojangsonTag(_))
-		case NBTIntArray(xs) => xs.isEmpty
-		case NBTCompound(tags)	=> tags.exists(child => isInvalidMojangsonTag(child._2))
+	private def validMojangsonTag(tag: NBTTag): Boolean = tag match {
+		case NBTByteArray(_) => false
+		case NBTList(xs) => xs.forall(validMojangsonTag(_))
+		case NBTIntArray(xs) => xs.nonEmpty
+		case NBTCompound(tags) => tags.forall(child => validMojangsonTag(child._2))
 		case _ => false
 	}
 
-	test("stringLiteral should accept any string with qoutes at the start and end") {
-		forAll { string: String =>
-			val addedSign = "\"" + string + "\""
-			val parsed = Parser.parseAll(Parser.stringLiteral, addedSign)
-			parsed should contain (addedSign)
+	private def stringLiteralValid(string: String): Boolean = {
+		!string.contains("\"")
+	}
+
+	private def tagNameValid(string: String): Boolean = {
+		string.nonEmpty && !string.contains(":") && !string.matches("""\s""")
+	}
+
+	val genMojangsonNbt: Gen[NBTTag] = Gen.oneOf(
+		genNbtByte,
+		genNbtShort,
+		genNbtInt,
+		genNbtLong,
+		genNbtFloat,
+		genNbtDouble,
+		genNbtString,
+		genNonEmptyNbtList.suchThat(_.value.forall(validMojangsonTag)),
+		genNbtCompound.suchThat(_.value.forall(tag => validMojangsonTag(tag._2))),
+		genNbtIntArray.suchThat(_.value.nonEmpty)
+	)
+
+	test("stringLiteral should accept any string with quotes at the start and end") {
+		forAll{ string: String =>
+			whenever(stringLiteralValid(string)) {
+				val addedSign = "\"" + string + "\""
+				val parsed = MojangsonParser.stringLiteral.parse(addedSign)
+				parsed should contain(addedSign)
+			}
 		}
 	}
-	test("stringLiteral should fail if the string is missing a qoute at the start") {
+	test("stringLiteral should fail if the string is missing a quotes at the start") {
 		forAll { string: String =>
-			val addedSign = string + "\""
-			val parsed = Parser.parseAll(Parser.stringLiteral, addedSign)
-			parsed shouldNot contain (addedSign)
+			whenever(stringLiteralValid(string)) {
+				val addedSign = string + "\""
+				val parsed = MojangsonParser.stringLiteral.parse(addedSign)
+				parsed shouldNot contain(addedSign)
+			}
 		}
 	}
-	test("stringLiteral should fail if the string is missing a qoute at the end") {
+	test("stringLiteral should fail if the string is missing a quotes at the end") {
 		forAll { string: String =>
-			val addedSign = "\"" + string
-			val parsed = Parser.parseAll(Parser.stringLiteral, addedSign)
-			parsed shouldNot contain (addedSign)
+			whenever(stringLiteralValid(string)) {
+				val addedSign = "\"" + string
+				val parsed = MojangsonParser.stringLiteral.parse(addedSign)
+				parsed shouldNot contain(addedSign)
+			}
 		}
 	}
 
 	test("wholeNumber should accept any whole numbers, as big as longs") {
 		forAll { number: Long =>
 			val stringNumber = number.toString
-			val parsed = Parser.parseAll(Parser.wholeNumber, stringNumber)
-			parsed should contain (number)
+			val parsed = MojangsonParser.wholeNumber.parse(stringNumber)
+			parsed should contain(number)
 		}
 	}
 
 	test("floatingPoint should accept any floating point number, as big as double") {
 		forAll { number: Double =>
 			val stringNumber = number.toString
-			val parsed = Parser.parseAll(Parser.floatingPoint, stringNumber)
-			parsed should contain (number)
+			val parsed = MojangsonParser.floatingPoint.parse(stringNumber)
+			parsed should contain(number)
 		}
 	}
 
 	test("floatingPoint should accept any number give with dot notation") {
-		forAll(Gen.chooseNum[Double](-1, 1).suchThat(i => i != -1 && i != 1)) { number =>
+		forAll(Gen.choose[Double](-1, 1).suchThat(i => i != -1 && i != 1 && i != 0)) { number =>
 			whenever(number.toString.charAt(0) == '0') {
 				val stringNumber = number.toString.tail
-				val parsed = Parser.parseAll(Parser.floatingPoint, stringNumber)
-				parsed should contain (number)
+				val parsed = MojangsonParser.floatingPoint.parse(stringNumber)
+				parsed should contain(number)
 			}
 		}
 	}
 
-	test("tagName should parse strings nonempty without colon") {
+	test("tagName should parse nonempty strings without colon") {
 		forAll { string: String =>
-			whenever(!string.contains(':') && string.nonEmpty) {
-				val parsed = Parser.parseAll(Parser.tagName, string)
-				parsed should contain (string)
+			whenever(tagNameValid(string)) {
+				val parsed = MojangsonParser.tagName.parse(string)
+				parsed should contain(string)
 			}
 		}
 	}
 
 	test("nbtByte should parse a byte followed by b") {
-		val string = "128b"
-		val parsed = Parser.parseAll(Parser.nbtByte, string)
-		parsed should contain (NBTByte(128.toByte))
+		val string = "127b"
+		val parsed = MojangsonParser.nbtByte.parse(string)
+		parsed should contain(NBTByte(127.toByte))
 	}
 	test("nbtByte should fail without the b") {
-		val string = "128"
-		val parsed = Parser.parseAll(Parser.nbtByte, string)
-		parsed shouldNot be (successful)
+		val string = "127"
+		val parsed = MojangsonParser.nbtByte.parse(string)
+		parsed shouldNot be(successful)
 	}
 
 	test("nbtShort should parse a short followed by s") {
 		val string = "128s"
-		val parsed = Parser.parseAll(Parser.nbtShort, string)
-		parsed should contain (NBTShort(128.toShort))
+		val parsed = MojangsonParser.nbtShort.parse(string)
+		parsed should contain(NBTShort(128.toShort))
 	}
 	test("nbtShort should fail without the s") {
 		val string = "128"
-		val parsed = Parser.parseAll(Parser.nbtShort, string)
-		parsed shouldNot be (successful)
+		val parsed = MojangsonParser.nbtShort.parse(string)
+		parsed shouldNot be(successful)
 	}
 
 	test("nbtLong should parse a long followed by L") {
 		val string = "128L"
-		val parsed = Parser.parseAll(Parser.nbtLong, string)
-		parsed should contain (NBTLong(128L))
+		val parsed = MojangsonParser.nbtLong.parse(string)
+		parsed should contain(NBTLong(128L))
 	}
 	test("nbtLong should fail without the L") {
 		val string = "128"
-		val parsed = Parser.parseAll(Parser.nbtLong, string)
-		parsed shouldNot be (successful)
+		val parsed = MojangsonParser.nbtLong.parse(string)
+		parsed shouldNot be(successful)
 	}
 
 	test("nbtFloat should parse a float followed by F") {
 		val string = "128F"
-		val parsed = Parser.parseAll(Parser.nbtFloat, string)
-		parsed should contain (NBTFloat(128F))
+		val parsed = MojangsonParser.nbtFloat.parse(string)
+		parsed should contain(NBTFloat(128F))
 	}
 	test("nbtFloat should parse a float followed by f") {
 		val string = "128f"
-		val parsed = Parser.parseAll(Parser.nbtFloat, string)
-		parsed should contain (NBTFloat(128F))
+		val parsed = MojangsonParser.nbtFloat.parse(string)
+		parsed should contain(NBTFloat(128F))
 	}
 	test("nbtFloat should fail without the f or F") {
 		val string = "128"
-		val parsed = Parser.parseAll(Parser.nbtFloat, string)
-		parsed shouldNot be (successful)
+		val parsed = MojangsonParser.nbtFloat.parse(string)
+		parsed shouldNot be(successful)
 	}
 
 	test("nbtDouble should parse a double followed by D") {
 		val string = "128D"
-		val parsed = Parser.parseAll(Parser.nbtDouble, string)
-		parsed should contain (NBTDouble(128D))
+		val parsed = MojangsonParser.nbtDouble.parse(string)
+		parsed should contain(NBTDouble(128D))
 	}
 	test("nbtDouble should parse a double followed by d") {
 		val string = "128D"
-		val parsed = Parser.parseAll(Parser.nbtDouble, string)
-		parsed should contain (NBTDouble(128D))
+		val parsed = MojangsonParser.nbtDouble.parse(string)
+		parsed should contain(NBTDouble(128D))
 	}
 	test("nbtDouble should fail without the d or D") {
 		val string = "128"
-		val parsed = Parser.parseAll(Parser.nbtDouble, string)
-		parsed shouldNot be (successful)
+		val parsed = MojangsonParser.nbtDouble.parse(string)
+		parsed shouldNot be(successful)
 	}
 
 	test("nbtNamedTag should parse a tagname, followed by a colon and then a tag") {
-		forAll {(nbtTag: NBTTag, tagName: String) =>
-			whenever(!tagName.contains(':') && tagName.nonEmpty && !isInvalidMojangsonTag(nbtTag)) {
+		forAll(genMojangsonNbt, arbitrary[String]) { (nbtTag: NBTTag, tagName: String) =>
+			whenever(tagNameValid(tagName) && validMojangsonTag(nbtTag)) {
 				val string = s"$tagName:${Mojangson.toMojangson(nbtTag)}"
-				val parsed = Parser.parseAll(Parser.nbtNamedTag, string)
-				parsed should contain ((tagName, nbtTag))
+				val parsed = MojangsonParser.nbtNamedTag.parse(string)
+				parsed should contain((tagName, nbtTag))
 			}
 		}
 	}
 
 	test("indexedTag should parse a tagname, followed by a colon and then a tag") {
-		forAll {(nbtTag: NBTTag, tagIndex: Int) =>
-			whenever(tagIndex >= 0 && !isInvalidMojangsonTag(nbtTag)) {
+		forAll(genMojangsonNbt, Gen.posNum[Int]) { (nbtTag, tagIndex) =>
+			whenever(tagIndex >= 0 && validMojangsonTag(nbtTag)) {
 				val string = s"$tagIndex:${Mojangson.toMojangson(nbtTag)}"
-				val parsed = Parser.parseAll(Parser.indexedTag, string)
-				parsed should contain ((tagIndex, nbtTag))
+				val parsed = MojangsonParser.indexedTag.parse(string)
+				parsed should contain((tagIndex, nbtTag))
 			}
 		}
 	}
 
 	//Last stand. Just making sure that nothing bad gets through
 	test("nbtTag should parse any nbt") {
-		implicit val generatorDrivenConfig  = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
-		forAll {nbtTag: NBTTag =>
-			whenever(!isInvalidMojangsonTag(nbtTag)) {
+		implicit val generatorDrivenConfig = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
+		forAll(genMojangsonNbt) { nbtTag =>
+			whenever(validMojangsonTag(nbtTag)) {
 				val string = Mojangson.toMojangson(nbtTag)
-				val parsed = Parser.parseAll(Parser.nbtTag, string)
-				parsed should contain (nbtTag)
+				val parsed = MojangsonParser.nbtTag.parse(string)
+				parsed should contain(nbtTag)
 			}
 		}
 	}
@@ -219,7 +257,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	//Currently fails
 	test("All parsers should ignore whitespace before a new combinator") {
 		val tag = "{ }"
-		val parsed = Parser.parseAll(Parser.nbtTag, tag)
-		parsed should contain (NBTCompound(Map()))
+		val parsed = MojangsonParser.nbtTag.parse(tag)
+		parsed should contain(NBTCompound(Map()))
 	}
 }
