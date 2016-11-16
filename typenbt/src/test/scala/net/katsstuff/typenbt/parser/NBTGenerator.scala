@@ -65,7 +65,7 @@ trait NBTGenerator {
 	} yield l
 
 	def genNonEmptyNbtCompound(compound: NBTCompound): Gen[NBTCompound] = for {
-		k <- arbitrary[String].suchThat(string => string.nonEmpty && !string.matches("""\s""") && string.contains(":"))
+		k <- arbitrary[String].suchThat(string => string.nonEmpty && !string.matches("""\s""") && !string.contains(":"))
 		v <- arbitrary[NBTTag]
 		m <- oneOf(Gen.const(compound), genNonEmptyNbtCompound(compound.set(k, v)))
 	} yield m

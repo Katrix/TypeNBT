@@ -67,10 +67,10 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 
 	private def validMojangsonTag(tag: NBTTag): Boolean = tag match {
 		case NBTByteArray(_) => false
-		case NBTList(xs) => xs.forall(validMojangsonTag(_))
+		case NBTList(xs) => xs.forall(validMojangsonTag(_)) && xs.nonEmpty
 		case NBTIntArray(xs) => xs.nonEmpty
 		case NBTCompound(tags) => tags.forall(child => validMojangsonTag(child._2))
-		case _ => false
+		case _ => true
 	}
 
 	private def stringLiteralValid(string: String): Boolean = {
@@ -78,21 +78,8 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	}
 
 	private def tagNameValid(string: String): Boolean = {
-		string.nonEmpty && !string.contains(":") && !string.matches("""\s""")
+		string.nonEmpty && string.forall(c => !":{}[]".contains(c)) && !string.matches("""\s""")
 	}
-
-	val genMojangsonNbt: Gen[NBTTag] = Gen.oneOf(
-		genNbtByte,
-		genNbtShort,
-		genNbtInt,
-		genNbtLong,
-		genNbtFloat,
-		genNbtDouble,
-		genNbtString,
-		genNonEmptyNbtList.suchThat(_.value.forall(validMojangsonTag)),
-		genNbtCompound.suchThat(_.value.forall(tag => validMojangsonTag(tag._2))),
-		genNbtIntArray.suchThat(_.value.nonEmpty)
-	)
 
 	test("stringLiteral should accept any string with quotes at the start and end") {
 		forAll{ string: String =>
@@ -223,7 +210,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	}
 
 	test("nbtNamedTag should parse a tagname, followed by a colon and then a tag") {
-		forAll(genMojangsonNbt, arbitrary[String]) { (nbtTag: NBTTag, tagName: String) =>
+		forAll { (nbtTag: NBTTag, tagName: String) =>
 			whenever(tagNameValid(tagName) && validMojangsonTag(nbtTag)) {
 				val string = s"$tagName:${Mojangson.toMojangson(nbtTag)}"
 				val parsed = MojangsonParser.nbtNamedTag.parse(string)
@@ -233,7 +220,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	}
 
 	test("indexedTag should parse a tagname, followed by a colon and then a tag") {
-		forAll(genMojangsonNbt, Gen.posNum[Int]) { (nbtTag, tagIndex) =>
+		forAll(genNbt, Gen.posNum[Int]) { (nbtTag, tagIndex) =>
 			whenever(tagIndex >= 0 && validMojangsonTag(nbtTag)) {
 				val string = s"$tagIndex:${Mojangson.toMojangson(nbtTag)}"
 				val parsed = MojangsonParser.indexedTag.parse(string)
@@ -245,7 +232,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
 	//Last stand. Just making sure that nothing bad gets through
 	test("nbtTag should parse any nbt") {
 		implicit val generatorDrivenConfig = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
-		forAll(genMojangsonNbt) { nbtTag =>
+		forAll { nbtTag: NBTTag =>
 			whenever(validMojangsonTag(nbtTag)) {
 				val string = Mojangson.toMojangson(nbtTag)
 				val parsed = MojangsonParser.nbtTag.parse(string)
