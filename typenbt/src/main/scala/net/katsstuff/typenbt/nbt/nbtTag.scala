@@ -52,47 +52,47 @@ object NBTTag {
 sealed trait NBTEnd extends NBTTag {
   override type Repr = Nothing
   override type Self = NBTEnd
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_END
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagEnd
 }
 final case class NBTByte(value: Byte) extends NBTTag {
   override type Repr = Byte
   override type Self = NBTByte
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_BYTE
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagByte
 }
 final case class NBTShort(value: Short) extends NBTTag {
   override type Repr = Short
   override type Self = NBTShort
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_SHORT
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagShort
 }
 final case class NBTInt(value: Int) extends NBTTag {
   override type Repr = Int
   override type Self = NBTInt
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_INT
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagInt
 }
 final case class NBTLong(value: Long) extends NBTTag {
   override type Repr = Long
   override type Self = NBTLong
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_LONG
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagLong
 }
 final case class NBTFloat(value: Float) extends NBTTag {
   override type Repr = Float
   override type Self = NBTFloat
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_FLOAT
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagFloat
 }
 final case class NBTDouble(value: Double) extends NBTTag {
   override type Repr = Double
   override type Self = NBTDouble
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_DOUBLE
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagDouble
 }
 final case class NBTByteArray(value: IndexedSeq[Byte]) extends NBTTag {
   override type Repr = IndexedSeq[Byte]
   override type Self = NBTByteArray
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_BYTE_ARRAY
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagByteArray
 }
 final case class NBTString(value: String) extends NBTTag {
   override type Repr = String
   override type Self = NBTString
-  override def nbtType: NBTType.Aux[String, Self] = NBTView.TAG_STRING
+  override def nbtType: NBTType.Aux[String, Self] = NBTView.TagString
 }
 
 final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
@@ -142,7 +142,7 @@ final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag {
   override type Repr = Map[String, NBTTag]
   override type Self = NBTCompound
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_COMPOUND
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagCompound
 
   /**
 		* The size of this compound.
@@ -325,5 +325,5 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
   override type Repr = IndexedSeq[Int]
   override type Self = NBTIntArray
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_INT_ARRAY
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagIntArray
 }

@@ -109,7 +109,7 @@ object Mojangson {
       })
       .map({
         case seq if seq.nonEmpty =>
-          NBTList[Any, AnyTag](seq.map(_._2).asInstanceOf[Seq[AnyTag]])(NBTView.TAG_LIST, seq.head._2.nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])
+          NBTList[Any, AnyTag](seq.map(_._2).asInstanceOf[Seq[AnyTag]])(NBTView.TagList, seq.head._2.nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])
         case _ => NBTList[Byte, NBTByte](Seq()).asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
       })
 

@@ -71,7 +71,7 @@ object IOTools {
     )
     try {
       readType(newStream) match {
-        case Success(nbtType) if nbtType == NBTView.TAG_COMPOUND =>
+        case Success(nbtType) if nbtType == NBTView.TagCompound =>
           for {
             name <- readString(newStream)
             tag  <- readCompound(newStream, NBTCompound(Map()))
@@ -157,7 +157,7 @@ object IOTools {
     //We match to be tail recursive
     readType(stream) match {
       case Success(nbtType) =>
-        if (nbtType == NBTView.TAG_END) Success(compound)
+        if (nbtType == NBTView.TagEnd) Success(compound)
         else {
           readString(stream) match {
             case Success(name) =>
@@ -187,7 +187,7 @@ object IOTools {
     } yield {
 
       (0 until length).foldLeft(
-        Success(NBTList[Any, AnyTag](Seq())(NBTView.TAG_LIST, nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])): Try[NBTList[Any, AnyTag]]
+        Success(NBTList[Any, AnyTag](Seq())(NBTView.TagList, nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])): Try[NBTList[Any, AnyTag]]
       ) {
         case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
         case (f @ Failure(_), _) => f
@@ -220,18 +220,18 @@ object IOTools {
     Try(NBTType.idToType(stream.readByte()).getOrElse(throw new IOException("Read type on NBT is not valid")))
 
   private def readTag(stream: DataInputStream, nbtType: NBTType): Try[NBTTag] = (nbtType: @unchecked) match {
-    case NBTView.TAG_BYTE       => Try(NBTByte(stream.readByte()))
-    case NBTView.TAG_SHORT      => Try(NBTShort(stream.readShort()))
-    case NBTView.TAG_INT        => Try(NBTInt(stream.readInt()))
-    case NBTView.TAG_LONG       => Try(NBTLong(stream.readLong()))
-    case NBTView.TAG_FLOAT      => Try(NBTFloat(stream.readFloat()))
-    case NBTView.TAG_DOUBLE     => Try(NBTDouble(stream.readDouble()))
-    case NBTView.TAG_BYTE_ARRAY => readByteArray(stream).map(a => NBTByteArray(a))
-    case NBTView.TAG_STRING     => readString(stream).map(s => NBTString(s))
-    case NBTView.TAG_LIST       => readList(stream)
-    case NBTView.TAG_COMPOUND   => readCompound(stream, NBTCompound(Map()))
-    case NBTView.TAG_INT_ARRAY  => readIntArray(stream).map(a => NBTIntArray(a))
-    case NBTView.TAG_END        => throw new IOException("Unexpected end tag")
+    case NBTView.TagByte       => Try(NBTByte(stream.readByte()))
+    case NBTView.TagShort      => Try(NBTShort(stream.readShort()))
+    case NBTView.TagInt        => Try(NBTInt(stream.readInt()))
+    case NBTView.TagLong       => Try(NBTLong(stream.readLong()))
+    case NBTView.TagFloat      => Try(NBTFloat(stream.readFloat()))
+    case NBTView.TagDouble     => Try(NBTDouble(stream.readDouble()))
+    case NBTView.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a))
+    case NBTView.TagString     => readString(stream).map(s => NBTString(s))
+    case NBTView.TagList       => readList(stream)
+    case NBTView.TagCompound   => readCompound(stream, NBTCompound(Map()))
+    case NBTView.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a))
+    case NBTView.TagEnd        => throw new IOException("Unexpected end tag")
     case NBTView.AnyTag         => throw new IOException("Got anyTag type. This should not happen")
     case _: NBTView.NBTListType => throw new IOException("Got unknown list type. This should not happen")
   }
