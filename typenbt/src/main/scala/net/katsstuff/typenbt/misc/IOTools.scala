@@ -216,8 +216,12 @@ object IOTools {
       })
       .flatten
 
-  private def readType(stream: DataInputStream): Try[NBTType] =
-    Try(NBTType.idToType(stream.readByte()).getOrElse(throw new IOException("Read type on NBT is not valid")))
+  private def readType(stream: DataInputStream): Try[NBTType] = {
+    Try{
+      val byte = stream.readByte()
+      NBTType.idToType(byte).getOrElse(throw new IOException(s"Read type $byte on NBT is not valid"))
+    }
+  }
 
   private def readTag(stream: DataInputStream, nbtType: NBTType): Try[NBTTag] = (nbtType: @unchecked) match {
     case NBTView.TagByte       => Try(NBTByte(stream.readByte()))

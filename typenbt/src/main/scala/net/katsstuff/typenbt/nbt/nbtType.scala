@@ -32,9 +32,14 @@ sealed trait NBTType extends NBTView {
 object NBTType {
 
   type Aux[Repr0, NBT0 <: NBTTag.Aux[Repr0]] = NBTType { type Repr = Repr0; type NBT = NBT0 }
-  type Repr[Repr]                            = Aux[Repr, NBTTag.Aux[Repr]]
+  type Obj[Repr]                             = Aux[Repr, NBTTag.Aux[Repr]]
+
+  sealed class ExtractFromRepr[Repr] {
+    def apply[NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): Aux[Repr, NBT] = nbtType
+  }
 
   def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = nbtType
+  def forRepr[Repr] = new ExtractFromRepr[Repr]
 
   /**
 		* Convert a numerical id to a [[NBTType]]
