@@ -22,9 +22,6 @@ package net.katsstuff.typenbt.nbt
 
 import java.util.UUID
 
-import shapeless._
-import shapeless.labelled.{field, FieldType}
-
 trait NBTView {
   type Repr
   type NBT <: NBTTag
@@ -33,7 +30,7 @@ trait NBTView {
 }
 object NBTView extends NBTViewInstances with NBTViewCaseCreator {
 
-  def apply[Repr, NBT <: NBTTag](implicit from: Lazy[NBTView.Aux[Repr, NBT]]): NBTView.Aux[Repr, NBT] = from.value
+  def apply[Repr, NBT <: NBTTag](implicit from: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = from
 
   type Aux[Repr0, NBT0 <: NBTTag] = NBTView { type Repr = Repr0; type NBT = NBT0 }
 
@@ -44,7 +41,6 @@ object NBTView extends NBTViewInstances with NBTViewCaseCreator {
 
 trait NBTViewInstances extends NBTTypeInstances {
 
-  /*
 	implicit case object BooleanView extends NBTView {
 		override type Repr = Boolean
 		override type NBT = NBTByte
@@ -69,11 +65,11 @@ trait NBTViewInstances extends NBTTypeInstances {
 			NBTCompound(Map("Most" -> NBTLong(v.getMostSignificantBits), "Least" -> NBTLong(v.getLeastSignificantBits)))
 		}
 	}
-	*/
 }
 
 trait NBTViewCaseCreator {
 
+  /*
   implicit case object EmptyProduct extends NBTView {
     override type Repr = HNil
     override type NBT  = NBTCompound
@@ -126,4 +122,5 @@ trait NBTViewCaseCreator {
     override def apply(v:     Repr): NBT          = ser.value(gen.to(v))
     override def unapply(arg: NBT):  Option[Repr] = ser.value.unapply(arg).map(gen.from)
   }
+  */
 }
