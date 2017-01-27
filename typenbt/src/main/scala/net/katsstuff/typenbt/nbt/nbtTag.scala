@@ -24,7 +24,8 @@ import java.util.UUID
 
 import scala.annotation.tailrec
 
-import shapeless.Typeable
+import shapeless.ops.hlist.{Mapper, ToTraversable}
+import shapeless.{HList, Poly1, Typeable}
 
 sealed trait NBTTag {
 
@@ -153,6 +154,14 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* Creates a new [[NBTCompound]] with the pair appended.
 		*/
   def +(tuple: (String, NBTTag)): NBTCompound = NBTCompound(value + tuple)
+
+  /**
+    * Creates a new [[NBTCompound]] with the hlist appended. If there exists duplicate values. it uses the second one
+    */
+  def ++[Input <: HList, Mapped <: HList, Traversed](hList: Input)(
+      implicit mapper: Mapper.Aux[NBTCompound.tupleToNBT.type, Input, Mapped],
+      toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
+      evidence: Traversed <:< (String, NBTTag)): NBTCompound = this.merge(NBTCompound.fromHList(hList))
 
   /**
 		* Creates a new [[NBTCompound]] with the key-value pair appended.
@@ -320,6 +329,18 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* Checks if this [[NBTCompound]] has a specific key.
 		*/
   def hasKey(key: String): Boolean = value.contains(key)
+}
+object NBTCompound {
+  object tupleToNBT extends Poly1 {
+    implicit def apply[Repr, NBT <: NBTTag](implicit view: NBTView.Aux[Repr, NBT]) =
+      at[(String, Repr)] { case (name, value) => name -> view(value) }
+  }
+
+  def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
+      implicit mapper: Mapper.Aux[tupleToNBT.type, Input, Mapped],
+      toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
+      evidence: Traversed <:< (String, NBTTag)) =
+    NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
 }
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
