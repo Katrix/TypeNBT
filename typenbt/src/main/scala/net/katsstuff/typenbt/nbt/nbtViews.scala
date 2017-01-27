@@ -30,7 +30,7 @@ trait NBTView {
   def apply(v:     Repr): NBT
   def unapply(arg: NBT):  Option[Repr]
 }
-object NBTView extends NBTViewInstances with NBTViewCaseCreator {
+object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
   sealed class InferViewFromRepr[Repr] {
     def infer[NBT <: NBTTag](implicit extract: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = extract
@@ -46,7 +46,7 @@ object NBTView extends NBTViewInstances with NBTViewCaseCreator {
   }
 }
 
-trait NBTViewInstances extends NBTTypeInstances {
+trait NBTViewInstances {
 
 	implicit case object BooleanView extends NBTView {
 		override type Repr = Boolean

@@ -61,7 +61,7 @@ object NBTType {
   }
 }
 
-trait NBTTypeInstances {
+trait NBTTypeInstances extends NBTViewInstances {
 
   val TagEnd       = TAG_End
   val TagByte      = TAG_Byte
