@@ -1,4 +1,4 @@
-import io.github.katrix.typenbt.nbt._
+import net.katsstuff.typenbt.nbt._
 
 import shapeless._
 import shapeless.syntax.singleton._

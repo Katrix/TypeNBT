@@ -1,6 +1,6 @@
-import io.github.katrix.typenbt.nbt._
-import io.github.katrix.typenbt.nbt.NBTView.ReprOps
-import io.github.katrix.typenbt.parser.Mojangson
+import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt.nbt.NBTView.ReprOps
+import net.katsstuff.typenbt.parser.Mojangson
 
 val nbtString = """{ }"""
 
@@ -16,6 +16,6 @@ val compund = NBTCompound()
   .set("string", "test".nbt)
   .set("list", list)
 
-val toMojangson = Mojangson.nbtToMojangson(compund)
-Mojangson.mojangsonToNBT(toMojangson)
-Mojangson.Parser.parse(Mojangson.Parser.nbtCompound, nbtString)
+val toMojangson = Mojangson.toMojangson(compund)
+Mojangson.fromMojangson(toMojangson)
+Mojangson.MojangsonParser.nbtCompound.parse(nbtString)
