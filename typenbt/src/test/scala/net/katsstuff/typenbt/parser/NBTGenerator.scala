@@ -27,94 +27,92 @@ import net.katsstuff.typenbt.nbt._
 
 trait NBTGenerator {
 
-	val genNbtByte     : Gen[NBTByte]      = for(v <- arbitrary[Byte]) yield NBTByte(v)
-	val genNbtShort    : Gen[NBTShort]     = for(v <- arbitrary[Short]) yield NBTShort(v)
-	val genNbtInt      : Gen[NBTInt]       = for(v <- arbitrary[Int]) yield NBTInt(v)
-	val genNbtLong     : Gen[NBTLong]      = for(v <- arbitrary[Long]) yield NBTLong(v)
-	val genNbtFloat    : Gen[NBTFloat]     = for(v <- arbitrary[Float]) yield NBTFloat(v)
-	val genNbtDouble   : Gen[NBTDouble]    = for(v <- arbitrary[Double]) yield NBTDouble(v)
-	val genNbtByteArray: Gen[NBTByteArray] = for(v <- arbitrary[IndexedSeq[Byte]]) yield NBTByteArray(v)
-	val genNbtString   : Gen[NBTString]    = for(v <- arbitrary[String]) yield NBTString(v)
-	val genNbtIntArray : Gen[NBTIntArray]  = for(v <- arbitrary[IndexedSeq[Int]]) yield NBTIntArray(v)
+  val genNbtByte:      Gen[NBTByte]      = for (v <- arbitrary[Byte]) yield NBTByte(v)
+  val genNbtShort:     Gen[NBTShort]     = for (v <- arbitrary[Short]) yield NBTShort(v)
+  val genNbtInt:       Gen[NBTInt]       = for (v <- arbitrary[Int]) yield NBTInt(v)
+  val genNbtLong:      Gen[NBTLong]      = for (v <- arbitrary[Long]) yield NBTLong(v)
+  val genNbtFloat:     Gen[NBTFloat]     = for (v <- arbitrary[Float]) yield NBTFloat(v)
+  val genNbtDouble:    Gen[NBTDouble]    = for (v <- arbitrary[Double]) yield NBTDouble(v)
+  val genNbtByteArray: Gen[NBTByteArray] = for (v <- arbitrary[IndexedSeq[Byte]]) yield NBTByteArray(v)
+  val genNbtString:    Gen[NBTString]    = for (v <- arbitrary[String]) yield NBTString(v)
+  val genNbtIntArray:  Gen[NBTIntArray]  = for (v <- arbitrary[IndexedSeq[Int]]) yield NBTIntArray(v)
 
-	implicit val arbitraryNbtByte     : Arbitrary[NBTByte]      = Arbitrary(genNbtByte)
-	implicit val arbitraryNbtShort    : Arbitrary[NBTShort]     = Arbitrary(genNbtShort)
-	implicit val arbitraryNbtInt      : Arbitrary[NBTInt]       = Arbitrary(genNbtInt)
-	implicit val arbitraryNbtLong     : Arbitrary[NBTLong]      = Arbitrary(genNbtLong)
-	implicit val arbitraryNbtFloat    : Arbitrary[NBTFloat]     = Arbitrary(genNbtFloat)
-	implicit val arbitraryNbtDouble   : Arbitrary[NBTDouble]    = Arbitrary(genNbtDouble)
-	implicit val arbitraryNbtByteArray: Arbitrary[NBTByteArray] = Arbitrary(genNbtByteArray)
-	implicit val arbitraryNbtString   : Arbitrary[NBTString]    = Arbitrary(genNbtString)
-	implicit val arbitraryNbtIntArray : Arbitrary[NBTIntArray]  = Arbitrary(genNbtIntArray)
+  implicit val arbitraryNbtByte:      Arbitrary[NBTByte]      = Arbitrary(genNbtByte)
+  implicit val arbitraryNbtShort:     Arbitrary[NBTShort]     = Arbitrary(genNbtShort)
+  implicit val arbitraryNbtInt:       Arbitrary[NBTInt]       = Arbitrary(genNbtInt)
+  implicit val arbitraryNbtLong:      Arbitrary[NBTLong]      = Arbitrary(genNbtLong)
+  implicit val arbitraryNbtFloat:     Arbitrary[NBTFloat]     = Arbitrary(genNbtFloat)
+  implicit val arbitraryNbtDouble:    Arbitrary[NBTDouble]    = Arbitrary(genNbtDouble)
+  implicit val arbitraryNbtByteArray: Arbitrary[NBTByteArray] = Arbitrary(genNbtByteArray)
+  implicit val arbitraryNbtString:    Arbitrary[NBTString]    = Arbitrary(genNbtString)
+  implicit val arbitraryNbtIntArray:  Arbitrary[NBTIntArray]  = Arbitrary(genNbtIntArray)
 
-	def genNbtList[Repr, NBT <: NBTTag.Aux[Repr] : Arbitrary](
-			implicit
-			nbtType: NBTType.Aux[Seq[NBT], NBTList[Repr, NBT]],
-			nbtElementType: NBTType.Aux[Repr, NBT]
-	): Gen[NBTList[Repr, NBT]] = for {
-		l <- oneOf(Gen.const(NBTList()), nonEmptyNbtList[Repr, NBT](NBTList()))
-	} yield l
+  def genNbtList[Repr, NBT <: NBTTag.Aux[Repr]: Arbitrary](implicit nbtType: NBTType.Aux[Seq[NBT], NBTList[Repr, NBT]],
+                                                           nbtElementType: NBTType.Aux[Repr, NBT]): Gen[NBTList[Repr, NBT]] =
+    for {
+      l <- oneOf(Gen.const(NBTList()), nonEmptyNbtList[Repr, NBT](NBTList()))
+    } yield l
 
-	def nonEmptyNbtList[Repr, NBT <: NBTTag.Aux[Repr] : Arbitrary](list: NBTList[Repr, NBT])(
-			implicit
-			nbtType: NBTType.Aux[Seq[NBT], NBTList[Repr, NBT]],
-			nbtElementType: NBTType.Aux[Repr, NBT]
-	): Gen[NBTList[Repr, NBT]] = for {
-		v <- arbitrary[NBT]
-		l <- oneOf(Gen.const(list :+ v), nonEmptyNbtList[Repr, NBT](list :+ v))
-	} yield l
+  def nonEmptyNbtList[Repr, NBT <: NBTTag.Aux[Repr]: Arbitrary](
+    list:             NBTList[Repr, NBT]
+  )(implicit nbtType: NBTType.Aux[Seq[NBT], NBTList[Repr, NBT]], nbtElementType: NBTType.Aux[Repr, NBT]): Gen[NBTList[Repr, NBT]] =
+    for {
+      v <- arbitrary[NBT]
+      l <- oneOf(Gen.const(list :+ v), nonEmptyNbtList[Repr, NBT](list :+ v))
+    } yield l
 
-	def genNonEmptyNbtCompound(compound: NBTCompound): Gen[NBTCompound] = for {
-		k <- arbitrary[String].suchThat(string => string.nonEmpty && !string.matches("""\s""") && !string.contains(":"))
-		v <- arbitrary[NBTTag]
-		m <- oneOf(Gen.const(compound), genNonEmptyNbtCompound(compound.set(k, v)))
-	} yield m
+  def genNonEmptyNbtCompound(compound: NBTCompound): Gen[NBTCompound] =
+    for {
+      k <- arbitrary[String].suchThat(string => string.nonEmpty && !string.matches("""\s""") && !string.contains(":"))
+      v <- arbitrary[NBTTag]
+      m <- oneOf(Gen.const(compound), genNonEmptyNbtCompound(compound.set(k, v)))
+    } yield m
 
-	val genNbtCompound: Gen[NBTCompound] = for {
-		m <- oneOf(Gen.const(NBTCompound()), genNonEmptyNbtCompound(NBTCompound()))
-	} yield m
+  val genNbtCompound: Gen[NBTCompound] = for {
+    m <- oneOf(Gen.const(NBTCompound()), genNonEmptyNbtCompound(NBTCompound()))
+  } yield m
 
-	implicit val arbitraryNbtCompound: Arbitrary[NBTCompound] = Arbitrary(genNbtCompound)
+  implicit val arbitraryNbtCompound: Arbitrary[NBTCompound] = Arbitrary(genNbtCompound)
 
-	val genNbtListType: Gen[NBTList[_, _ <: NBTTag]] = oneOf(
-		genNbtList[Byte, NBTByte],
-		genNbtList[Short, NBTShort],
-		genNbtList[Int, NBTInt],
-		genNbtList[Long, NBTLong],
-		genNbtList[Float, NBTFloat],
-		genNbtList[Double, NBTDouble],
-		genNbtList[IndexedSeq[Byte], NBTByteArray],
-		genNbtList[String, NBTString],
-		genNbtList[IndexedSeq[Int], NBTIntArray],
-		genNbtList[Map[String, NBTTag], NBTCompound]
-	)
+  val genNbtListType: Gen[NBTList[_, _ <: NBTTag]] = oneOf(
+    genNbtList[Byte, NBTByte],
+    genNbtList[Short, NBTShort],
+    genNbtList[Int, NBTInt],
+    genNbtList[Long, NBTLong],
+    genNbtList[Float, NBTFloat],
+    genNbtList[Double, NBTDouble],
+    genNbtList[IndexedSeq[Byte], NBTByteArray],
+    genNbtList[String, NBTString],
+    genNbtList[IndexedSeq[Int], NBTIntArray],
+    genNbtList[Map[String, NBTTag], NBTCompound]
+  )
 
-	val genNonEmptyNbtList: Gen[NBTList[_, _ <: NBTTag]] = oneOf(
-		nonEmptyNbtList[Byte, NBTByte](NBTList()),
-		nonEmptyNbtList[Short, NBTShort](NBTList()),
-		nonEmptyNbtList[Int, NBTInt](NBTList()),
-		nonEmptyNbtList[Long, NBTLong](NBTList()),
-		nonEmptyNbtList[Float, NBTFloat](NBTList()),
-		nonEmptyNbtList[Double, NBTDouble](NBTList()),
-		nonEmptyNbtList[IndexedSeq[Byte], NBTByteArray](NBTList()),
-		nonEmptyNbtList[String, NBTString](NBTList()),
-		nonEmptyNbtList[IndexedSeq[Int], NBTIntArray](NBTList()),
-		nonEmptyNbtList[Map[String, NBTTag], NBTCompound](NBTList())
-	)
+  val genNonEmptyNbtList: Gen[NBTList[_, _ <: NBTTag]] = oneOf(
+    nonEmptyNbtList[Byte, NBTByte](NBTList()),
+    nonEmptyNbtList[Short, NBTShort](NBTList()),
+    nonEmptyNbtList[Int, NBTInt](NBTList()),
+    nonEmptyNbtList[Long, NBTLong](NBTList()),
+    nonEmptyNbtList[Float, NBTFloat](NBTList()),
+    nonEmptyNbtList[Double, NBTDouble](NBTList()),
+    nonEmptyNbtList[IndexedSeq[Byte], NBTByteArray](NBTList()),
+    nonEmptyNbtList[String, NBTString](NBTList()),
+    nonEmptyNbtList[IndexedSeq[Int], NBTIntArray](NBTList()),
+    nonEmptyNbtList[Map[String, NBTTag], NBTCompound](NBTList())
+  )
 
-	val genNbt: Gen[NBTTag] = oneOf(
-		genNbtByte,
-		genNbtShort,
-		genNbtInt,
-		genNbtLong,
-		genNbtFloat,
-		genNbtDouble,
-		genNbtByteArray,
-		genNbtString,
-		genNbtListType,
-		genNbtCompound,
-		genNbtIntArray
-	)
+  val genNbt: Gen[NBTTag] = oneOf(
+    genNbtByte,
+    genNbtShort,
+    genNbtInt,
+    genNbtLong,
+    genNbtFloat,
+    genNbtDouble,
+    genNbtByteArray,
+    genNbtString,
+    genNbtListType,
+    genNbtCompound,
+    genNbtIntArray
+  )
 
-	implicit val arbitraryNbt: Arbitrary[NBTTag] = Arbitrary(genNbt)
+  implicit val arbitraryNbt: Arbitrary[NBTTag] = Arbitrary(genNbt)
 }

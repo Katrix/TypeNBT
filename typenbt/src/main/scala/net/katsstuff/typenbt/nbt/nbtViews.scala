@@ -26,25 +26,25 @@ import shapeless._
 import shapeless.labelled.{field, FieldType}
 
 trait NBTView {
-	type Repr
-	type NBT <: NBTTag
-	def apply(v: Repr): NBT
-	def unapply(arg: NBT): Option[Repr]
+  type Repr
+  type NBT <: NBTTag
+  def apply(v:     Repr): NBT
+  def unapply(arg: NBT):  Option[Repr]
 }
 object NBTView extends NBTViewInstances with NBTViewCaseCreator {
 
-	def apply[Repr, NBT <: NBTTag](implicit from: Lazy[NBTView.Aux[Repr, NBT]]): NBTView.Aux[Repr, NBT] = from.value
+  def apply[Repr, NBT <: NBTTag](implicit from: Lazy[NBTView.Aux[Repr, NBT]]): NBTView.Aux[Repr, NBT] = from.value
 
-	type Aux[Repr0, NBT0 <: NBTTag] = NBTView{ type Repr = Repr0; type NBT = NBT0 }
+  type Aux[Repr0, NBT0 <: NBTTag] = NBTView { type Repr = Repr0; type NBT = NBT0 }
 
-	implicit class ReprOps[Repr](val repr: Repr) extends AnyVal {
-		def nbt[NBT <: NBTTag](implicit view: NBTView.Aux[Repr, NBT]): NBT = view(repr)
-	}
+  implicit class ReprOps[Repr](val repr: Repr) extends AnyVal {
+    def nbt[NBT <: NBTTag](implicit view: NBTView.Aux[Repr, NBT]): NBT = view(repr)
+  }
 }
 
 trait NBTViewInstances extends NBTTypeInstances {
 
-	/*
+  /*
 	implicit case object BooleanView extends NBTView {
 		override type Repr = Boolean
 		override type NBT = NBTByte
@@ -74,67 +74,56 @@ trait NBTViewInstances extends NBTTypeInstances {
 
 trait NBTViewCaseCreator {
 
-	implicit case object EmptyProduct extends NBTView {
-		override type Repr = HNil
-		override type NBT = NBTCompound
-		override def apply(v: HNil): NBT = NBTCompound()
-		override def unapply(arg: NBT): Option[HNil] = Some(HNil)
-	}
+  implicit case object EmptyProduct extends NBTView {
+    override type Repr = HNil
+    override type NBT  = NBTCompound
+    override def apply(v:     HNil): NBT          = NBTCompound()
+    override def unapply(arg: NBT):  Option[HNil] = Some(HNil)
+  }
 
-	implicit case object EmptyCoproduct extends NBTView {
-		override type Repr = CNil
-		override type NBT = NBTCompound
-		override def apply(v: Repr): NBT = throw new IllegalStateException
-		override def unapply(arg: NBT): Option[Repr] = throw new IllegalStateException
-	}
+  implicit case object EmptyCoproduct extends NBTView {
+    override type Repr = CNil
+    override type NBT  = NBTCompound
+    override def apply(v:     Repr): NBT          = throw new IllegalStateException
+    override def unapply(arg: NBT):  Option[Repr] = throw new IllegalStateException
+  }
 
-	implicit def product[Name <: Symbol, Head, Tail <: HList, HeadNBT <: NBTTag](
-			implicit
-			name: Witness.Aux[Name],
-			vh: Lazy[NBTView.Aux[Head, HeadNBT]],
-			vt: Lazy[NBTView.Aux[Tail, NBTCompound]],
-			tpe: Typeable[HeadNBT]
-	): NBTView = new NBTView {
-		override type Repr = FieldType[Name, Head] :: Tail
-		override type NBT = NBTCompound
-		override def apply(v: Repr): NBT = vt.value(v.tail).set(name.value.name, vh.value(v.head))
-		override def unapply(arg: NBT): Option[Repr] = {
-			val head = arg.get(name.value.name).flatMap(tpe.cast(_).flatMap(vh.value.unapply))
-			val tail = vt.value.unapply(arg)
+  implicit def product[Name <: Symbol, Head, Tail <: HList, HeadNBT <: NBTTag](implicit name: Witness.Aux[Name],
+                                                                               vh:            Lazy[NBTView.Aux[Head, HeadNBT]],
+                                                                               vt:            Lazy[NBTView.Aux[Tail, NBTCompound]],
+                                                                               tpe:           Typeable[HeadNBT]): NBTView = new NBTView {
+    override type Repr = FieldType[Name, Head] :: Tail
+    override type NBT  = NBTCompound
+    override def apply(v:     Repr): NBT = vt.value(v.tail).set(name.value.name, vh.value(v.head))
+    override def unapply(arg: NBT): Option[Repr] = {
+      val head = arg.get(name.value.name).flatMap(tpe.cast(_).flatMap(vh.value.unapply))
+      val tail = vt.value.unapply(arg)
 
-			head.flatMap(h => tail.map(t => field[Name](h) :: t))
-		}
-	}
+      head.flatMap(h => tail.map(t => field[Name](h) :: t))
+    }
+  }
 
-	implicit def coproduct[Name <: Symbol, Left, Right <: Coproduct, LeftNBT <: NBTTag](
-			implicit
-			name: Witness.Aux[Name],
-			vl: Lazy[NBTView.Aux[Left, LeftNBT]],
-			vr: Lazy[NBTView.Aux[Right, NBTCompound]],
-			tpe: Typeable[LeftNBT]
-	): NBTView = new NBTView {
-		override type Repr = FieldType[Name, Left] :+: Right
-		override type NBT = NBTCompound
-		override def apply(v: Repr): NBT = v match {
-			case Inl(l) => NBTCompound(Map(name.value.name -> vl.value(l)))
-			case Inr(r) => vr.value(r)
-		}
-		override def unapply(arg: NBT): Option[Repr] = {
-			arg.asInstanceOf[NBTCompound].get(name.value.name) match {
-				case Some(tag) => tpe.cast(tag).flatMap(vl.value.unapply(_).map(l => Inl(field[Name](l))))
-				case None => vr.value.unapply(arg).map(Inr(_))
-			}
-		}
-	}
+  implicit def coproduct[Name <: Symbol, Left, Right <: Coproduct, LeftNBT <: NBTTag](implicit name: Witness.Aux[Name],
+                                                                                      vl:            Lazy[NBTView.Aux[Left, LeftNBT]],
+                                                                                      vr:            Lazy[NBTView.Aux[Right, NBTCompound]],
+                                                                                      tpe:           Typeable[LeftNBT]): NBTView = new NBTView {
+    override type Repr = FieldType[Name, Left] :+: Right
+    override type NBT  = NBTCompound
+    override def apply(v: Repr): NBT = v match {
+      case Inl(l) => NBTCompound(Map(name.value.name -> vl.value(l)))
+      case Inr(r) => vr.value(r)
+    }
+    override def unapply(arg: NBT): Option[Repr] =
+      arg.asInstanceOf[NBTCompound].get(name.value.name) match {
+        case Some(tag) => tpe.cast(tag).flatMap(vl.value.unapply(_).map(l => Inl(field[Name](l))))
+        case None      => vr.value.unapply(arg).map(Inr(_))
+      }
+  }
 
-	implicit def caseToView[A, HList](
-			implicit
-			gen: LabelledGeneric.Aux[A, HList],
-			ser: Lazy[NBTView.Aux[HList, NBTCompound]]
-	): NBTView = new NBTView {
-		override type Repr = A
-		override type NBT = NBTCompound
-		override def apply(v: Repr): NBT = ser.value(gen.to(v))
-		override def unapply(arg: NBT): Option[Repr] = ser.value.unapply(arg).map(gen.from)
-	}
+  implicit def caseToView[A, HList](implicit gen: LabelledGeneric.Aux[A, HList], ser: Lazy[NBTView.Aux[HList, NBTCompound]]): NBTView = new NBTView {
+    override type Repr = A
+    override type NBT  = NBTCompound
+    override def apply(v:     Repr): NBT          = ser.value(gen.to(v))
+    override def unapply(arg: NBT):  Option[Repr] = ser.value.unapply(arg).map(gen.from)
+  }
 }

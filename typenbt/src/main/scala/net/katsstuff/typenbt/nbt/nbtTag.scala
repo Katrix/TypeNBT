@@ -27,147 +27,148 @@ import scala.annotation.tailrec
 import shapeless.Typeable
 
 sealed trait NBTTag {
-	/**
+
+  /**
 		* The value that this [[NBTTag]] holds.
 		*/
-	type Repr
-	type Self <: NBTTag.Aux[Repr]
+  type Repr
+  type Self <: NBTTag.Aux[Repr]
 
-	/**
+  /**
 		* The value of this [[NBTTag]]
 		*/
-	def value: Repr
+  def value: Repr
 
-	/**
+  /**
 		* The type of this [[NBTTag]]
 		*/
-	def nbtType: NBTType.Aux[Repr, Self]
+  def nbtType: NBTType.Aux[Repr, Self]
 }
 
 object NBTTag {
-	type Aux[Repr0] = NBTTag {type Repr = Repr0}
+  type Aux[Repr0] = NBTTag { type Repr = Repr0 }
 }
 
 sealed trait NBTEnd extends NBTTag {
-	override type Repr = Nothing
-	override type Self = NBTEnd
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_END
+  override type Repr = Nothing
+  override type Self = NBTEnd
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_END
 }
 final case class NBTByte(value: Byte) extends NBTTag {
-	override type Repr = Byte
-	override type Self = NBTByte
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_BYTE
+  override type Repr = Byte
+  override type Self = NBTByte
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_BYTE
 }
 final case class NBTShort(value: Short) extends NBTTag {
-	override type Repr = Short
-	override type Self = NBTShort
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_SHORT
+  override type Repr = Short
+  override type Self = NBTShort
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_SHORT
 }
 final case class NBTInt(value: Int) extends NBTTag {
-	override type Repr = Int
-	override type Self = NBTInt
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_INT
+  override type Repr = Int
+  override type Self = NBTInt
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_INT
 }
 final case class NBTLong(value: Long) extends NBTTag {
-	override type Repr = Long
-	override type Self = NBTLong
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_LONG
+  override type Repr = Long
+  override type Self = NBTLong
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_LONG
 }
 final case class NBTFloat(value: Float) extends NBTTag {
-	override type Repr = Float
-	override type Self = NBTFloat
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_FLOAT
+  override type Repr = Float
+  override type Self = NBTFloat
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_FLOAT
 }
 final case class NBTDouble(value: Double) extends NBTTag {
-	override type Repr = Double
-	override type Self = NBTDouble
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_DOUBLE
+  override type Repr = Double
+  override type Self = NBTDouble
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_DOUBLE
 }
 final case class NBTByteArray(value: IndexedSeq[Byte]) extends NBTTag {
-	override type Repr = IndexedSeq[Byte]
-	override type Self = NBTByteArray
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_BYTE_ARRAY
+  override type Repr = IndexedSeq[Byte]
+  override type Self = NBTByteArray
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_BYTE_ARRAY
 }
 final case class NBTString(value: String) extends NBTTag {
-	override type Repr = String
-	override type Self = NBTString
-	override def nbtType: NBTType.Aux[String, Self] = NBTView.TAG_STRING
+  override type Repr = String
+  override type Self = NBTString
+  override def nbtType: NBTType.Aux[String, Self] = NBTView.TAG_STRING
 }
 
-final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](value: Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq())(
-		implicit
-		val nbtType: NBTType.Aux[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]],
-		val nbtListType: NBTType.Aux[ElementRepr, ElementNBT]) extends NBTTag {
+final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
+  value:                Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq()
+)(implicit val nbtType: NBTType.Aux[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]], val nbtListType: NBTType.Aux[ElementRepr, ElementNBT])
+    extends NBTTag {
 
-	override type Repr = Seq[ElementNBT]
-	override type Self = NBTList[ElementRepr, ElementNBT]
+  override type Repr = Seq[ElementNBT]
+  override type Self = NBTList[ElementRepr, ElementNBT]
 
-	/**
+  /**
 		* Gets the [[NBTTag]] at the specified index.
 		*/
-	def apply(i: Int): ElementNBT = value(i)
+  def apply(i: Int): ElementNBT = value(i)
 
-	/**
+  /**
 		* Creates a new NBTList with this element prepended
 		*/
-	def +:(value: ElementNBT): NBTList[ElementRepr, ElementNBT] = NBTList(value +: this.value)
+  def +:(value: ElementNBT): NBTList[ElementRepr, ElementNBT] = NBTList(value +: this.value)
 
-	/**
+  /**
 		* Creates a new NBTList with this element appended
 		*/
-	def :+(value: ElementNBT): NBTList[ElementRepr, ElementNBT] = NBTList(this.value :+ value)
+  def :+(value: ElementNBT): NBTList[ElementRepr, ElementNBT] = NBTList(this.value :+ value)
 
-	/**
+  /**
 		* Appends the specific [[NBTTag]]s to this [[NBTList]]
 		*/
-	def ++(values: ElementNBT*): NBTList[ElementRepr, ElementNBT] = NBTList(this.value ++ values)
+  def ++(values: ElementNBT*): NBTList[ElementRepr, ElementNBT] = NBTList(this.value ++ values)
 
-	/**
+  /**
 		* The index of the specific element.
 		*/
-	def indexOf(obj: ElementNBT): Int = value.indexOf(obj)
+  def indexOf(obj: ElementNBT): Int = value.indexOf(obj)
 
-	/**
+  /**
 		* The size of this list.
 		*/
-	def size: Int = value.size
+  def size: Int = value.size
 
-	/**
+  /**
 		* If this list contains no elements
 		*/
-	def isEmpty: Boolean = value.isEmpty
+  def isEmpty: Boolean = value.isEmpty
 }
 
 final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag {
-	override type Repr = Map[String, NBTTag]
-	override type Self = NBTCompound
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_COMPOUND
+  override type Repr = Map[String, NBTTag]
+  override type Self = NBTCompound
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_COMPOUND
 
-	/**
+  /**
 		* The size of this compound.
 		*/
-	def size: Int = value.size
+  def size: Int = value.size
 
-	/**
+  /**
 		* Creates a new [[NBTCompound]] with the pair appended.
 		*/
-	def +(tuple: (String, NBTTag)): NBTCompound = NBTCompound(value + tuple)
+  def +(tuple: (String, NBTTag)): NBTCompound = NBTCompound(value + tuple)
 
-	/**
+  /**
 		* Creates a new [[NBTCompound]] with the key-value pair appended.
 		*/
-	def updated(key: String, tag: NBTTag): NBTCompound = NBTCompound(value.updated(key, tag))
+  def updated(key: String, tag: NBTTag): NBTCompound = NBTCompound(value.updated(key, tag))
 
-	/**
+  /**
 		* Associates a specific tag to a specific key.
 		*
 		* @param key The key to bind to.
 		* @param tag The tag to set.
 		* @return An [[scala.Option]] with the previous value of the used key, or None if the key was not already used.
 		*/
-	def set(key: String, tag: NBTTag): NBTCompound = updated(key, tag)
+  def set(key: String, tag: NBTTag): NBTCompound = updated(key, tag)
 
-	/**
+  /**
 		* Creates a NBTTag from the type passed in, and adds it to the compound.
 		*
 		* @param key The key to bind to.
@@ -176,11 +177,10 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* @tparam Repr The type to convert from
 		* @tparam NBT The tag to convert to
 		*/
-	def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(implicit to: NBTView.Aux[Repr, NBT]): NBTCompound = {
-		set(key, to(value))
-	}
+  def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(implicit to: NBTView.Aux[Repr, NBT]): NBTCompound =
+    set(key, to(value))
 
-	/**
+  /**
 		* Creates two [[NBTLong]] tags from the UUID and sets the tags.
 		*
 		* This method differs in behavior from [[NBTViewInstances.UUIDView]].
@@ -191,42 +191,41 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @return The same things goes for this as for [[set]], only here you have a [[scala.collection.Seq]] instead of an [[scala.Option]]
 		*/
-	def setUUID(key: String, value: UUID): NBTCompound = {
-		val most = NBTLong(value.getMostSignificantBits)
-		val least = NBTLong(value.getLeastSignificantBits)
-		set(s"${key}Most", most).set(s"${key}Least", least)
-	}
+  def setUUID(key: String, value: UUID): NBTCompound = {
+    val most  = NBTLong(value.getMostSignificantBits)
+    val least = NBTLong(value.getLeastSignificantBits)
+    set(s"${key}Most", most).set(s"${key}Least", least)
+  }
 
-	/**
+  /**
 		* Tries to get a value in this [[NBTCompound]], or
 		* throws an NoSuchElementException if no value is found.
 		*/
-	def apply(key: String): NBTTag = value(key)
+  def apply(key: String): NBTTag = value(key)
 
-	/**
+  /**
 		* Get a tag from this [[NBTCompound]]
 		*/
-	def get(key: String): Option[NBTTag] = value.get(key)
+  def get(key: String): Option[NBTTag] = value.get(key)
 
-	/**
+  /**
 		* Gets a value from this if it exists at the specified key,
 		* and it can be converted to the specified value.
 		*/
-	def getValue[Repr, NBT <: NBTTag](key: String)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
-		get(key).flatMap(nbt => tpe.cast(nbt).flatMap(from.unapply))
-	}
+  def getValue[Repr, NBT <: NBTTag](key: String)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
+    get(key).flatMap(nbt => tpe.cast(nbt).flatMap(from.unapply))
 
-	/**
+  /**
 		* Tries to get an [[java.util.UUID]] created with [[setUUID]].
 		*/
-	def getUUID(key: String): Option[UUID] = {
-		get(s"${key}Most")
-			.collect { case NBTLong(most) => get(s"${key}Least")
-				.collect { case NBTLong(least) => new UUID(most, least) }
-			}.flatten
-	}
+  def getUUID(key: String): Option[UUID] =
+    get(s"${key}Most").collect {
+      case NBTLong(most) =>
+        get(s"${key}Least")
+          .collect { case NBTLong(least) => new UUID(most, least) }
+    }.flatten
 
-	/**
+  /**
 		* Tries to get a [[NBTTag]] nested in multiple [[NBTCompound]].
 		*
 		* Example:
@@ -236,97 +235,95 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* assert(compound.getRecursive("first", "second") == NBTString("hi"))
 		* }}}
 		*/
-	@tailrec
-	def getRecursive(keys: String*): Option[NBTTag] = {
-		val tail = keys.tail
-		if(tail == Nil) get(keys.head)
-		else get(keys.head) match {
-			case Some(compound: NBTCompound) => compound.getRecursive(tail: _*)
-			case _ => None
-		}
-	}
+  @tailrec
+  def getRecursive(keys: String*): Option[NBTTag] = {
+    val tail = keys.tail
+    if (tail == Nil) get(keys.head)
+    else
+      get(keys.head) match {
+        case Some(compound: NBTCompound) => compound.getRecursive(tail: _*)
+        case _ => None
+      }
+  }
 
-	/**
+  /**
 		* Same as [[getRecursive]], but with a value instead of a [[NBTTag]].
 		*
 		* @see [[getRecursive]]
 		*/
-	@tailrec
-	def getRecursiveValue[Repr, NBT <: NBTTag](keys: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
-		val tail = keys.tail
-		if(tail == Nil) getValue[Repr, NBT](keys.head)
-		else get(keys.head) match {
-			case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr, NBT](tail: _*)
-			case _ => None
-		}
-	}
+  @tailrec
+  def getRecursiveValue[Repr, NBT <: NBTTag](keys: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+    val tail = keys.tail
+    if (tail == Nil) getValue[Repr, NBT](keys.head)
+    else
+      get(keys.head) match {
+        case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr, NBT](tail: _*)
+        case _ => None
+      }
+  }
 
-	/**
+  /**
 		* Tries to merge this [[NBTCompound]] with another.
 		* If a situation where both compounds contain some value with the same key arises,
 		* the merge function is used.
 		*/
-	def mergeAdvanced(other: NBTCompound)(merge: ((String, NBTTag), (String, NBTTag)) => (String, NBTTag)): NBTCompound = {
-		val conflictKeys = value.keySet.intersect(other.value.keySet)
+  def mergeAdvanced(other: NBTCompound)(merge: ((String, NBTTag), (String, NBTTag)) => (String, NBTTag)): NBTCompound = {
+    val conflictKeys = value.keySet.intersect(other.value.keySet)
 
-		def mergePot(first: NBTTag, second: NBTTag): Option[NBTTag] = {
-			first match {
-				case thisCompound: NBTCompound => second match {
-					case thatCompound: NBTCompound =>
-						Some(thisCompound.mergeAdvanced(thatCompound)(merge))
-					case _ => None
-				}
-				case _ => None
-			}
-		}
+    def mergePot(first: NBTTag, second: NBTTag): Option[NBTTag] =
+      first match {
+        case thisCompound: NBTCompound =>
+          second match {
+            case thatCompound: NBTCompound =>
+              Some(thisCompound.mergeAdvanced(thatCompound)(merge))
+            case _ => None
+          }
+        case _ => None
+      }
 
-		def handleConflict(conflicted: (String, NBTTag), others: Seq[(String, NBTTag)]): ((String, NBTTag), Seq[(String, NBTTag)]) = {
-			val otherKV = others.find(kv => kv._1 == conflicted._1)
-				.get //Get is completely safe here as we already know that both sequences contains the value
-			val filteredOthers = others.filter(kv => kv != otherKV)
+    def handleConflict(conflicted: (String, NBTTag), others: Seq[(String, NBTTag)]): ((String, NBTTag), Seq[(String, NBTTag)]) = {
+      val otherKV        = others.find(kv => kv._1 == conflicted._1).get //Get is completely safe here as we already know that both sequences contains the value
+      val filteredOthers = others.filter(kv => kv != otherKV)
 
-			mergePot(conflicted._2, otherKV._2) match {
-				case Some(merged) => ((otherKV._1, merged), filteredOthers)
-				case None => (merge(conflicted, otherKV), filteredOthers)
-			}
-		}
+      mergePot(conflicted._2, otherKV._2) match {
+        case Some(merged) => ((otherKV._1, merged), filteredOthers)
+        case None         => (merge(conflicted, otherKV), filteredOthers)
+      }
+    }
 
-		@tailrec
-		def inner(thisRest: Seq[(String, NBTTag)], thatRest: Seq[(String, NBTTag)], acc: Map[String, NBTTag]): Map[String, NBTTag] = {
-			if(thisRest.isEmpty) acc ++ thatRest
-			else if(thatRest.isEmpty) acc ++ thisRest
-			else {
-				val thisHead@(thisName, _) = thisRest.head
-				val thatHead@(thatName, _) = thatRest.head
+    @tailrec
+    def inner(thisRest: Seq[(String, NBTTag)], thatRest: Seq[(String, NBTTag)], acc: Map[String, NBTTag]): Map[String, NBTTag] =
+      if (thisRest.isEmpty) acc ++ thatRest
+      else if (thatRest.isEmpty) acc ++ thisRest
+      else {
+        val thisHead @ (thisName, _) = thisRest.head
+        val thatHead @ (thatName, _) = thatRest.head
 
-				if(conflictKeys.contains(thisName)) {
-					val (merged, newThat) = handleConflict(thisHead, thatRest)
-					inner(thisRest.tail, newThat, acc + merged)
-				}
-				else if(conflictKeys.contains(thatName)) {
-					val (merged, newThis) = handleConflict(thatHead, thisRest)
-					inner(thisRest.tail, newThis, acc + merged)
-				}
-				else inner(thisRest.tail, thatRest.tail, acc + thisHead + thatHead)
-			}
-		}
+        if (conflictKeys.contains(thisName)) {
+          val (merged, newThat) = handleConflict(thisHead, thatRest)
+          inner(thisRest.tail, newThat, acc + merged)
+        } else if (conflictKeys.contains(thatName)) {
+          val (merged, newThis) = handleConflict(thatHead, thisRest)
+          inner(thisRest.tail, newThis, acc + merged)
+        } else inner(thisRest.tail, thatRest.tail, acc + thisHead + thatHead)
+      }
 
-		NBTCompound(inner(value.toSeq, other.value.toSeq, Map()))
-	}
+    NBTCompound(inner(value.toSeq, other.value.toSeq, Map()))
+  }
 
-	/**
+  /**
 		* Merges this [[NBTCompound]] with another, and if a conflict arises, uses the second one.
 		*/
-	def merge(other: NBTCompound): NBTCompound = mergeAdvanced(other)((first, second) => second)
+  def merge(other: NBTCompound): NBTCompound = mergeAdvanced(other)((first, second) => second)
 
-	/**
+  /**
 		* Checks if this [[NBTCompound]] has a specific key.
 		*/
-	def hasKey(key: String): Boolean = value.contains(key)
+  def hasKey(key: String): Boolean = value.contains(key)
 }
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
-	override type Repr = IndexedSeq[Int]
-	override type Self = NBTIntArray
-	override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_INT_ARRAY
+  override type Repr = IndexedSeq[Int]
+  override type Self = NBTIntArray
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_INT_ARRAY
 }
