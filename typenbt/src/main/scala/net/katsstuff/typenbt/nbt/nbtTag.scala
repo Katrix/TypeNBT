@@ -221,8 +221,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* Gets a value from this if it exists at the specified key,
 		* and it can be converted to the specified value.
 		*/
-  def getValue[Repr, NBT <: NBTTag](key: String)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
-    get(key).flatMap(nbt => tpe.cast(nbt).flatMap(from.unapply))
+  def getValue[Repr] = new NBTCompound.getValue[Repr](this)
 
   /**
 		* Tries to get an [[java.util.UUID]] created with [[setUUID]].
@@ -260,16 +259,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @see [[getRecursive]]
 		*/
-  @tailrec
-  def getRecursiveValue[Repr, NBT <: NBTTag](keys: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
-    val tail = keys.tail
-    if (tail == Nil) getValue[Repr, NBT](keys.head)
-    else
-      get(keys.head) match {
-        case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr, NBT](tail: _*)
-        case _ => None
-      }
-  }
+  def getRecursiveValue[Repr] = new NBTCompound.getRecursiveValue[Repr](this)
 
   /**
 		* Tries to merge this [[NBTCompound]] with another.
@@ -341,10 +331,28 @@ object NBTCompound {
       toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
       evidence: Traversed <:< (String, NBTTag)) =
     NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
+
+  class getValue[Repr](nbt: NBTCompound) {
+    def apply[NBT <: NBTTag](key: String)(implicit view: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+      nbt.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.unapply))
+    }
+  }
+
+  class getRecursiveValue[Repr](nbt: NBTCompound) {
+    def apply[NBT <: NBTTag](keys: String*)(implicit from: NBTView.Aux[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+      val tail = keys.tail
+      if (tail == Nil) nbt.getValue[Repr](keys.head)
+      else
+        nbt.get(keys.head) match {
+          case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr](tail: _*)
+          case _ => None
+        }
+    }
+  }
 }
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
   override type Repr = IndexedSeq[Int]
   override type Self = NBTIntArray
-  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TagIntArray
+  override def nbtType: NBTType.Aux[Repr, Self] = NBTView.TAG_Int_Array
 }

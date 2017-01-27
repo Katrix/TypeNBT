@@ -22,6 +22,8 @@ package net.katsstuff.typenbt.nbt
 
 import java.util.UUID
 
+import scala.language.higherKinds
+
 trait NBTView {
   type Repr
   type NBT <: NBTTag
@@ -30,7 +32,12 @@ trait NBTView {
 }
 object NBTView extends NBTViewInstances with NBTViewCaseCreator {
 
+  sealed class InferViewFromRepr[Repr] {
+    def infer[NBT <: NBTTag](implicit extract: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = extract
+  }
+
   def apply[Repr, NBT <: NBTTag](implicit from: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = from
+  def forRepr[Repr] = new InferViewFromRepr[Repr]
 
   type Aux[Repr0, NBT0 <: NBTTag] = NBTView { type Repr = Repr0; type NBT = NBT0 }
 

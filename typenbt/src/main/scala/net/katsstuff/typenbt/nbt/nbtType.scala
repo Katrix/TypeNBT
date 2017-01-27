@@ -34,12 +34,12 @@ object NBTType {
   type Aux[Repr0, NBT0 <: NBTTag.Aux[Repr0]] = NBTType { type Repr = Repr0; type NBT = NBT0 }
   type Obj[Repr]                             = Aux[Repr, NBTTag.Aux[Repr]]
 
-  sealed class ExtractFromRepr[Repr] {
-    def apply[NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): Aux[Repr, NBT] = nbtType
+  sealed class InferTypeFromRepr[Repr] {
+    def infer[NBT <: NBTTag.Aux[Repr]](implicit extract: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = extract
   }
 
   def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = nbtType
-  def forRepr[Repr] = new ExtractFromRepr[Repr]
+  def forRepr[Repr] = new InferTypeFromRepr[Repr]
 
   /**
 		* Convert a numerical id to a [[NBTType]]
