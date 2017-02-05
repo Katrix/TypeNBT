@@ -97,8 +97,8 @@ final case class NBTString(value: String) extends NBTTag {
 }
 
 final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
-  value:                Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq()
-)(implicit val nbtType: NBTType.Aux[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]], val nbtListType: NBTType.Aux[ElementRepr, ElementNBT])
+  value:                Seq[ElementNBT] = Seq()
+)(implicit val nbtType: NBTTypeInstances#NBTListType[ElementRepr, ElementNBT])
     extends NBTTag {
 
   override type Repr = Seq[ElementNBT]

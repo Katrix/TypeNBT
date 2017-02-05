@@ -163,28 +163,19 @@ trait NBTTypeInstances extends NBTViewInstances {
   }
 
   //We allow creating new list types for type sake
-  sealed abstract class NBTListType extends NBTType {
-    type ElementRepr
-    type ElementNBT <: NBTTag.Aux[ElementRepr]
+  sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType.Aux[ElementRepr, ElementNBT])
+    extends NBTType {
     override type NBT  = NBTList[ElementRepr, ElementNBT]
     override type Repr = Seq[ElementNBT]
-    override final def id: Byte = 11
+    override def id: Byte = 11
 
-    override def apply(v: Repr): NBT = new NBTList[ElementRepr, ElementNBT](v)(this, elementType)
-    def elementType: NBTType.Aux[ElementRepr, ElementNBT]
+    override def apply(v: Repr): NBT =
+      new NBTList[ElementRepr, ElementNBT](v)(this)
   }
+
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](implicit elementType: NBTType.Aux[ElemRepr, ElemNBT]) =
+    new NBTListType[ElemRepr, ElemNBT](elementType)
 
   //A raw list with no checks. If used wrong, this WILL cause problems
-  case object TAG_List extends NBTListType {
-    override type ElementRepr = Any
-    override type ElementNBT  = NBTTag.Aux[Any]
-    override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = NBTView.AnyTag
-  }
-
-  implicit def listType[ElementRepr0, ElementNBT0 <: NBTTag.Aux[ElementRepr0]](implicit elementType0: NBTType.Aux[ElementRepr0, ElementNBT0]) =
-    new NBTListType {
-      override type ElementRepr = ElementRepr0
-      override type ElementNBT  = ElementNBT0
-      override def elementType: NBTType.Aux[ElementRepr, ElementNBT] = elementType0
-    }
+  case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](NBTView.AnyTag)
 }

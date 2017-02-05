@@ -98,7 +98,7 @@ object Mojangson {
 
     val indexedTag: Parser[(Int, NBTTag)] = P(tagIndex ~ colon ~ nbtTag)
     val nbtList = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~ listEnd)
-      .filter({
+      .filter {
         case seq if seq.nonEmpty =>
           val head     = seq.head._2
           val sameId   = seq.forall(a => a._2.nbtType.id == head.nbtType.id)
@@ -106,12 +106,18 @@ object Mojangson {
 
           sameId && indicies == seq.size
         case _ => true
-      })
-      .map({
+      }
+      .map {
         case seq if seq.nonEmpty =>
-          NBTList[Any, AnyTag](seq.map(_._2).asInstanceOf[Seq[AnyTag]])(NBTView.TagList, seq.head._2.nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])
-        case _ => NBTList[Byte, NBTByte](Seq()).asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
-      })
+          val mapped      = seq.map(_._2)
+          val head        = mapped.head
+          val withType    = mapped.asInstanceOf[Seq[head.Self]]
+          val nbtListType = head.nbtType
+          val nbtType     = new NBTView.NBTListType(nbtListType)
+
+          NBTList[head.Repr, head.Self](withType)(nbtType)
+        case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
+      }
 
     val wholeNbt = P(nbtCompound ~ End)
   }

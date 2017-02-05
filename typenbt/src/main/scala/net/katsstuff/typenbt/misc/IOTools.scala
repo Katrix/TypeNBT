@@ -113,7 +113,7 @@ object IOTools {
 
   private def writeList(stream: DataOutputStream, list: NBTList[_, _ <: NBTTag]): Try[Unit] = {
     val ret = for {
-      _   <- writeType(stream, list.nbtListType)
+      _   <- writeType(stream, list.nbtType.elementType)
       res <- Try(stream.writeInt(list.value.size))
     } yield res
 
@@ -180,17 +180,15 @@ object IOTools {
 
   private type AnyTag = NBTView.AnyTag.NBT
 
-  private def readList(stream: DataInputStream): Try[NBTList[Any, AnyTag]] = {
-    val ret = for {
-      nbtType <- readType(stream)
-      length  <- Try(stream.readInt())
-    } yield {
+  private def readList(stream: DataInputStream): Try[NBTTag] = {
+    val ret = readType(stream).map { nbtType =>
+      val listType = new NBTView.NBTListType(nbtType.asInstanceOf[NBTType.Aux[nbtType.Repr, nbtType.NBT]])
 
-      (0 until length).foldLeft(
-        Success(NBTList[Any, AnyTag](Seq())(NBTView.TagList, nbtType.asInstanceOf[NBTType.Aux[Any, AnyTag]])): Try[NBTList[Any, AnyTag]]
-      ) {
-        case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
-        case (f @ Failure(_), _) => f
+      Try(stream.readInt()).flatMap { length =>
+        (0 until length).foldLeft(Try(NBTList()(listType))) {
+          case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[nbtType.NBT])
+          case (f @ Failure(_), _) => f
+        }
       }
     }
 
@@ -230,13 +228,11 @@ object IOTools {
     case NBTView.TagLong       => Try(NBTLong(stream.readLong()))
     case NBTView.TagFloat      => Try(NBTFloat(stream.readFloat()))
     case NBTView.TagDouble     => Try(NBTDouble(stream.readDouble()))
-    case NBTView.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a))
+    case NBTView.TagByteArray  => readByteArray(stream).map(a => NBTByteArray(a))
     case NBTView.TagString     => readString(stream).map(s => NBTString(s))
     case NBTView.TagList       => readList(stream)
-    case NBTView.TagCompound   => readCompound(stream, NBTCompound(Map()))
-    case NBTView.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a))
+    case NBTView.TagCompound   => readCompound(stream, NBTCompound())
+    case NBTView.TagIntArray   => readIntArray(stream).map(a => NBTIntArray(a))
     case NBTView.TagEnd        => throw new IOException("Unexpected end tag")
-    case NBTView.AnyTag         => throw new IOException("Got anyTag type. This should not happen")
-    case _: NBTView.NBTListType => throw new IOException("Got unknown list type. This should not happen")
   }
 }
