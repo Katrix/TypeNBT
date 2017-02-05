@@ -21,7 +21,7 @@ lazy val typenbt = crossProject
   .settings(
     name := "TypeNBT",
     organization := "net.katsstuff",
-    version := "0.1",
+    version := "0.2",
     libraryDependencies += "org.scalactic"  %%% "scalactic"  % "3.0.0"  % Test,
     libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.0"  % Test,
     libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.13.4" % Test,
