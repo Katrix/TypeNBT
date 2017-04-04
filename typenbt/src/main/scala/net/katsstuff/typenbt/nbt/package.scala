@@ -27,7 +27,12 @@ import net.katsstuff.typenbt.nbt.NBTView.InferViewFromRepr
 
 package object nbt {
 
-  implicit def applyViewInfer[Repr, NBT <: NBTTag](infer: InferViewFromRepr[Repr])(implicit extract: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = infer.infer[NBT]
-  implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(implicit extract: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = infer.infer[NBT]
+  implicit def applyViewInfer[Repr, NBT <: NBTTag](infer: InferViewFromRepr[Repr])(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] = infer.infer[NBT]
+  implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = infer.infer[NBT]
+
+  implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr] = NBTView.ReprOps(repr)
+
+  val NBTBoolean = NBTView.BooleanView
+  val NBTUUID = NBTView.UUIDView
 
 }

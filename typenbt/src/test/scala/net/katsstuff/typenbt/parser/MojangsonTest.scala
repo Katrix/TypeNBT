@@ -244,6 +244,6 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
   test("All parsers should ignore whitespace before a new combinator") {
     val tag    = "{ }"
     val parsed = MojangsonParser.nbtTag.parse(tag)
-    parsed should contain(NBTCompound(Map()))
+    parsed should contain(NBTCompound())
   }
 }

@@ -24,54 +24,76 @@ import java.util.UUID
 
 import scala.language.higherKinds
 
-trait NBTView {
-  type Repr
-  type NBT <: NBTTag
+import shapeless.Typeable
+
+trait NBTView[Repr, NBT <: NBTTag] {
   def apply(v:     Repr): NBT
   def unapply(arg: NBT):  Option[Repr]
 }
 object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
   sealed class InferViewFromRepr[Repr] {
-    def infer[NBT <: NBTTag](implicit extract: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = extract
+    def infer[NBT <: NBTTag](implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] = extract
   }
 
-  def apply[Repr, NBT <: NBTTag](implicit from: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = from
+  def apply[Repr, NBT <: NBTTag](implicit from: NBTView[Repr, NBT]): NBTView[Repr, NBT] = from
   def forRepr[Repr] = new InferViewFromRepr[Repr]
 
-  type Aux[Repr0, NBT0 <: NBTTag] = NBTView { type Repr = Repr0; type NBT = NBT0 }
-
-  implicit class ReprOps[Repr](val repr: Repr) extends AnyVal {
-    def nbt[NBT <: NBTTag](implicit view: NBTView.Aux[Repr, NBT]): NBT = view(repr)
+  implicit class ReprOps[Repr](private val repr: Repr) extends AnyVal {
+    def nbt[NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBT = view(repr)
   }
 }
 
-trait NBTViewInstances {
+trait NBTViewInstances extends LowPriorityViewInstances {
 
-	implicit case object BooleanView extends NBTView {
-		override type Repr = Boolean
-		override type NBT = NBTByte
-		override def apply(v: Boolean): NBTByte = NBTByte(if(v) 1 else 0)
-		override def unapply(arg: NBTByte): Option[Boolean] = Some(arg.value == 1)
-	}
+  implicit case object BooleanView extends NBTView[Boolean, NBTByte] {
+    override def apply(v:     Boolean): NBTByte         = NBTByte(if (v) 1 else 0)
+    override def unapply(arg: NBTByte): Option[Boolean] = Some(arg.value == 1)
+  }
 
-	implicit case object UUIDView extends NBTView {
-		override type Repr = UUID
-		override type NBT = NBTCompound
-		override def unapply(arg: NBTCompound): Option[UUID] = {
-			arg.get("Most").flatMap {
-				case NBTLong(mostSign) => arg.get("Least").flatMap {
-					case NBTLong(leastSign) => Some(new UUID(mostSign, leastSign))
-					case _ => None
-				}
-				case _ => None
-			}
-		}
+  implicit case object UUIDView extends NBTView[UUID, NBTCompound] {
+    override def unapply(arg: NBTCompound): Option[UUID] =
+      arg.get("Most").flatMap {
+        case NBTLong(mostSign) =>
+          arg.get("Least").flatMap {
+            case NBTLong(leastSign) => Some(new UUID(mostSign, leastSign))
+            case _                  => None
+          }
+        case _ => None
+      }
 
-		override def apply(v: UUID): NBTCompound = {
-			NBTCompound(Map("Most" -> NBTLong(v.getMostSignificantBits), "Least" -> NBTLong(v.getLeastSignificantBits)))
-		}
-	}
+    override def apply(v: UUID): NBTCompound =
+      NBTCompound(Map("Most" -> NBTLong(v.getMostSignificantBits), "Least" -> NBTLong(v.getLeastSignificantBits)))
+  }
+
+  implicit def mapView[ElemRepr, ElemNBT <: NBTTag](implicit view: NBTView[ElemRepr, ElemNBT], typeable: Typeable[ElemNBT]) =
+    new NBTView[Map[String, ElemRepr], NBTCompound] {
+      override def apply(v: Map[String, ElemRepr]): NBTCompound = {
+        val mapped = v.mapValues(view.apply)
+        NBTCompound(mapped)
+      }
+      override def unapply(arg: NBTCompound): Option[Map[String, ElemRepr]] = {
+        val res = for {
+          (str, nbt) <- arg.value
+          typed      <- typeable.cast(nbt).toSeq
+          mapped     <- view.unapply(typed).toSeq
+        } yield str -> mapped
+
+        Some(res)
+      }
+    }
+}
+
+trait LowPriorityViewInstances {
+
+  implicit def seqView[RawRepr, ElemRepr, ElemNBT <: NBTTag.Aux[RawRepr]](implicit view: NBTView[ElemRepr, ElemNBT],
+      listType:      NBTView.NBTListType[RawRepr, ElemNBT]) = new NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] {
+    override def apply(v:     Seq[ElemRepr]): NBTList[RawRepr, ElemNBT] = NBTList[RawRepr, ElemNBT](v.map(view.apply))
+    override def unapply(arg: NBTList[RawRepr, ElemNBT]): Option[Seq[ElemRepr]] = {
+      val mapped = arg.value.map(view.unapply)
+      Some(mapped.flatten)
+    }
+  }
 }
 
 trait NBTViewCaseCreator {
@@ -129,5 +151,5 @@ trait NBTViewCaseCreator {
     override def apply(v:     Repr): NBT          = ser.value(gen.to(v))
     override def unapply(arg: NBT):  Option[Repr] = ser.value.unapply(arg).map(gen.from)
   }
-  */
+ */
 }

@@ -29,7 +29,7 @@ class CorrectViewTest extends FunSuite with Matchers {
   def getView[NBT <: NBTTag] = new getView[NBT]
 
   class getView[NBT <: NBTTag] {
-    def apply[Repr](implicit view: NBTView.Aux[Repr, NBT]): NBTView.Aux[Repr, NBT] = view
+    def apply[Repr](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
   }
 
   test("The view for NBTByte should be NBTView.TagByte") {

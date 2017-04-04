@@ -57,7 +57,7 @@ object Mojangson {
 
     type NamedTag   = (String, NBTTag)
     type IndexedTag = (Int, NBTTag)
-    type AnyTag     = NBTView.AnyTag.NBT
+    type AnyTag     = NBTTag.Aux[Any]
 
     val stringLiteral: Parser[String] = P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(s => s.replace("""\"""", """"""").replace("""\\""", """\"""))
     val floatingPoint: Parser[Double] = P(RegexParser("""[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?""".r)).!.map(_.toDouble)

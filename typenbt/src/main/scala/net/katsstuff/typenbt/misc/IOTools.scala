@@ -74,7 +74,7 @@ object IOTools {
         case Success(nbtType) if nbtType == NBTView.TagCompound =>
           for {
             name <- readString(newStream)
-            tag  <- readCompound(newStream, NBTCompound(Map()))
+            tag  <- readCompound(newStream, NBTCompound())
           } yield (name, tag)
         case Success(_) => Failure(throw new IOException("Wrong starting type for NBT"))
         case f: Failure[Nothing @unchecked] => f
@@ -135,7 +135,7 @@ object IOTools {
       case (f @ Failure(_), _) => f
     }
 
-  private def writeType(stream: DataOutputStream, tagType: NBTType): Try[Unit] = Try(stream.writeByte(tagType.id))
+  private def writeType(stream: DataOutputStream, tagType: NBTType[_, _ <: NBTTag]): Try[Unit] = Try(stream.writeByte(tagType.id))
 
   private def writeTag(stream: DataOutputStream, nbt: NBTTag): Try[Unit] =
     nbt match {
@@ -178,15 +178,15 @@ object IOTools {
       readBytes.map(u => new String(characters, UTF8))
     })
 
-  private type AnyTag = NBTView.AnyTag.NBT
+  private type AnyTag = NBTTag.Aux[Any]
 
   private def readList(stream: DataInputStream): Try[NBTTag] = {
     val ret = readType(stream).map { nbtType =>
-      val listType = new NBTView.NBTListType(nbtType.asInstanceOf[NBTType.Aux[nbtType.Repr, nbtType.NBT]])
+      val listType = new NBTView.NBTListType(nbtType.asInstanceOf[NBTType[Any, AnyTag]])
 
       Try(stream.readInt()).flatMap { length =>
         (0 until length).foldLeft(Try(NBTList()(listType))) {
-          case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[nbtType.NBT])
+          case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
           case (f @ Failure(_), _) => f
         }
       }
@@ -214,14 +214,12 @@ object IOTools {
       })
       .flatten
 
-  private def readType(stream: DataInputStream): Try[NBTType] = {
-    Try{
-      val byte = stream.readByte()
-      NBTType.idToType(byte).getOrElse(throw new IOException(s"Read type $byte on NBT is not valid"))
-    }
+  private def readType(stream: DataInputStream): Try[NBTType[Any, _ <: AnyTag]] = Try {
+    val byte = stream.readByte()
+    NBTType.idToType(byte).getOrElse(throw new IOException(s"Read type $byte on NBT is not valid")).asInstanceOf[NBTType[Any, _ <: AnyTag]]
   }
 
-  private def readTag(stream: DataInputStream, nbtType: NBTType): Try[NBTTag] = (nbtType: @unchecked) match {
+  private def readTag[Repr](stream: DataInputStream, nbtType: NBTType[Repr, _ <: NBTTag.Aux[Repr]]): Try[NBTTag] = (nbtType: @unchecked) match {
     case NBTView.TagByte       => Try(NBTByte(stream.readByte()))
     case NBTView.TagShort      => Try(NBTShort(stream.readShort()))
     case NBTView.TagInt        => Try(NBTInt(stream.readInt()))

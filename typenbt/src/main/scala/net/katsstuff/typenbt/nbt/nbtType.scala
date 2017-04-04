@@ -23,28 +23,26 @@ package net.katsstuff.typenbt.nbt
 /**
 	* A specific type of [[NBTTag]]. Contains constructor and deconstructer, in addition to the numerical id.
 	*/
-sealed trait NBTType extends NBTView {
-  type NBT <: NBTTag.Aux[Repr]
+sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends NBTView[Repr, NBT] {
   def id: Byte
   override def unapply(arg: NBT): Option[Repr] = Some(arg.value)
 }
 
 object NBTType {
 
-  type Aux[Repr0, NBT0 <: NBTTag.Aux[Repr0]] = NBTType { type Repr = Repr0; type NBT = NBT0 }
-  type Obj[Repr]                             = Aux[Repr, NBTTag.Aux[Repr]]
+  type Obj[Repr]                             = NBTType[Repr, NBTTag.Aux[Repr]]
 
   sealed class InferTypeFromRepr[Repr] {
-    def infer[NBT <: NBTTag.Aux[Repr]](implicit extract: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = extract
+    def infer[NBT <: NBTTag.Aux[Repr]](implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = extract
   }
 
-  def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType.Aux[Repr, NBT]): NBTType.Aux[Repr, NBT] = nbtType
+  def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType[Repr, NBT]): NBTType[Repr, NBT] = nbtType
   def forRepr[Repr] = new InferTypeFromRepr[Repr]
 
   /**
 		* Convert a numerical id to a [[NBTType]]
 		*/
-  def idToType(i: Int): Option[NBTType] = i match {
+  def idToType(i: Int): Option[NBTType[_, _ <: NBTTag]] = i match {
     case 0  => Some(NBTView.TagEnd)
     case 1  => Some(NBTView.TagByte)
     case 2  => Some(NBTView.TagShort)
@@ -76,104 +74,78 @@ trait NBTTypeInstances extends NBTViewInstances {
   val TagIntArray  = TAG_Int_Array
   val TagList      = TAG_List
 
-  case object AnyTag extends NBTType {
-    override type Repr = Any
-    override type NBT  = NBTTag.Aux[Any]
+  case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
     override def id: Byte = throw new IllegalStateException("Tried to get ID for any tag")
-    override def apply(v: Repr): NBT = throw new IllegalStateException("Tried to construct any tag")
+    override def apply(v: Any): NBTTag.Aux[Any] = throw new IllegalStateException("Tried to construct any tag")
   }
 
   //Official names for them
-  case object TAG_End extends NBTType {
-    override type Repr = Nothing
-    override type NBT  = NBTEnd
+  case object TAG_End extends NBTType[Nothing, NBTEnd] {
     override def id: Byte = 0
-    override def apply(v:     Nothing): NBT          = throw new IllegalStateException("Tried to construct end tag")
-    override def unapply(arg: NBT):     Option[Repr] = throw new IllegalStateException("Tried to deconstruct end tag")
+    override def apply(v:     Nothing): NBTEnd          = throw new IllegalStateException("Tried to construct end tag")
+    override def unapply(arg: NBTEnd):     Option[Nothing] = throw new IllegalStateException("Tried to deconstruct end tag")
   }
 
-  implicit case object TAG_Byte extends NBTType {
-    override type Repr = Byte
-    override type NBT  = NBTByte#Self
+  implicit case object TAG_Byte extends NBTType[Byte, NBTByte] {
     override def id: Byte = 1
-    override def apply(v: Repr): NBT = NBTByte(v)
+    override def apply(v: Byte): NBTByte = NBTByte(v)
   }
 
-  implicit case object TAG_Short extends NBTType {
-    override type Repr = Short
-    override type NBT  = NBTShort#Self
+  implicit case object TAG_Short extends NBTType[Short, NBTShort] {
     override def id: Byte = 2
-    override def apply(v: Repr): NBT = NBTShort(v)
+    override def apply(v: Short): NBTShort = NBTShort(v)
   }
 
-  implicit case object TAG_Int extends NBTType {
-    override type Repr = Int
-    override type NBT  = NBTInt#Self
+  implicit case object TAG_Int extends NBTType[Int, NBTInt] {
     override def id: Byte = 3
-    override def apply(v: Repr): NBT = NBTInt(v)
+    override def apply(v: Int): NBTInt = NBTInt(v)
   }
 
-  implicit case object TAG_Long extends NBTType {
-    override type Repr = Long
-    override type NBT  = NBTLong#Self
+  implicit case object TAG_Long extends NBTType[Long, NBTLong] {
     override def id: Byte = 4
-    override def apply(v: Repr): NBT = NBTLong(v)
+    override def apply(v: Long): NBTLong = NBTLong(v)
   }
 
-  implicit case object TAG_Float extends NBTType {
-    override type Repr = Float
-    override type NBT  = NBTFloat#Self
+  implicit case object TAG_Float extends NBTType[Float, NBTFloat] {
     override def id: Byte = 5
-    override def apply(v: Repr): NBT = NBTFloat(v)
+    override def apply(v: Float): NBTFloat = NBTFloat(v)
   }
 
-  implicit case object TAG_Double extends NBTType {
-    override type Repr = Double
-    override type NBT  = NBTDouble#Self
+  implicit case object TAG_Double extends NBTType[Double, NBTDouble] {
     override def id: Byte = 6
-    override def apply(v: Repr): NBT = NBTDouble(v)
+    override def apply(v: Double): NBTDouble = NBTDouble(v)
   }
 
-  implicit case object TAG_Byte_Array extends NBTType {
-    override type Repr = IndexedSeq[Byte]
-    override type NBT  = NBTByteArray#Self
+  implicit case object TAG_Byte_Array extends NBTType[IndexedSeq[Byte], NBTByteArray] {
     override def id: Byte = 7
-    override def apply(v: Repr): NBT = NBTByteArray(v)
+    override def apply(v: IndexedSeq[Byte]): NBTByteArray = NBTByteArray(v)
   }
 
-  implicit case object TAG_String extends NBTType {
-    override type Repr = String
-    override type NBT  = NBTString#Self
+  implicit case object TAG_String extends NBTType[String, NBTString] {
     override def id: Byte = 8
-    override def apply(v: Repr): NBT = NBTString(v)
+    override def apply(v: String): NBTString = NBTString(v)
   }
 
-  implicit case object TAG_Compound extends NBTType {
-    override type Repr = Map[String, NBTTag]
-    override type NBT  = NBTCompound#Self
+  implicit case object TAG_Compound extends NBTType[Map[String, NBTTag], NBTCompound] {
     override def id: Byte = 10
-    override def apply(v: Repr): NBT = NBTCompound(v)
+    override def apply(v: Map[String, NBTTag]): NBTCompound = NBTCompound(v)
   }
 
-  implicit case object TAG_Int_Array extends NBTType {
-    override type Repr = IndexedSeq[Int]
-    override type NBT  = NBTIntArray#Self
+  implicit case object TAG_Int_Array extends NBTType[IndexedSeq[Int], NBTIntArray] {
     override def id: Byte = 11
-    override def apply(v: Repr): NBT = NBTIntArray(v)
+    override def apply(v: IndexedSeq[Int]): NBTIntArray = NBTIntArray(v)
   }
 
   //We allow creating new list types for type sake
-  sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType.Aux[ElementRepr, ElementNBT])
-    extends NBTType {
-    override type NBT  = NBTList[ElementRepr, ElementNBT]
-    override type Repr = Seq[ElementNBT]
+  sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType[ElementRepr, ElementNBT])
+    extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
     override def id: Byte = 11
 
-    override def apply(v: Repr): NBT =
+    override def apply(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
       new NBTList[ElementRepr, ElementNBT](v)(this)
   }
 
-  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](implicit elementType: NBTType.Aux[ElemRepr, ElemNBT]) =
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](implicit elementType: NBTType[ElemRepr, ElemNBT]) =
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
   //A raw list with no checks. If used wrong, this WILL cause problems
