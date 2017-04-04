@@ -31,6 +31,7 @@ package object nbt {
   implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = infer.infer[NBT]
 
   implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr] = NBTView.ReprOps(repr)
+  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT] = NBTView.NBTOps(nbt)
 
   val NBTBoolean = NBTView.BooleanView
   val NBTUUID = NBTView.UUIDView

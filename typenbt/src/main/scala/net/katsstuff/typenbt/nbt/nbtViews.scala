@@ -29,6 +29,9 @@ import shapeless.Typeable
 trait NBTView[Repr, NBT <: NBTTag] {
   def apply(v:     Repr): NBT
   def unapply(arg: NBT):  Option[Repr]
+
+  def modify[NewRepr, NewNBT <: NBTTag](nbt: NBT)(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
+    this.unapply(nbt).map(a => newView(f(a)))
 }
 object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
@@ -41,6 +44,13 @@ object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
   implicit class ReprOps[Repr](private val repr: Repr) extends AnyVal {
     def nbt[NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBT = view(repr)
+  }
+
+  implicit class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
+    def set[Repr](repr: Repr)(implicit view: NBTView[Repr, NBT]): NBT = view.apply(repr)
+
+    def modify[Repr, NewRepr, NewNBT <: NBTTag](f: Repr => NewRepr)(implicit view: NBTView[Repr, NBT], newView: NBTView[NewRepr, NewNBT]) =
+      view.modify[NewRepr, NewNBT](nbt)(f)(newView)
   }
 }
 
