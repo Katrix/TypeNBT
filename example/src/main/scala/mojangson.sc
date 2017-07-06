@@ -1,6 +1,8 @@
+import fastparse.core.Parsed.Failure
+import fastparse.core.{ParseError, Parsed, Parser}
 import net.katsstuff.typenbt._
 
-val nbtString = """{ }"""
+val nbtString1 = """{"4": [2}"""
 
 val list = NBTList((1 until 10).map(_.nbt))
 
@@ -16,4 +18,10 @@ val compund = NBTCompound()
 
 val toMojangson = Mojangson.toMojangson(compund)
 Mojangson.fromMojangson(toMojangson)
-Mojangson.MojangsonParser.nbtCompound.parse(nbtString)
+
+def errorMessage[T](p: Parser[T, Char, String], str: String) =
+  ParseError(p.parse(str).asInstanceOf[Parsed.Failure[Char, String]]).getMessage
+
+errorMessage(Mojangson.MojangsonParser.wholeNbt, nbtString1)
+
+"dummy"
