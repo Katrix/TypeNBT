@@ -71,4 +71,8 @@ class CorrectViewTest extends FunSuite with Matchers {
   test("The view for NBTIntArray should be NBTView.TagIntArray") {
     assert(getView[NBTIntArray].apply === NBTView.TagIntArray)
   }
+
+  test("The view for NBTLongArray should be NBTView.TagLongArray") {
+    assert(getView[NBTLongArray].apply === NBTView.TagLongArray)
+  }
 }

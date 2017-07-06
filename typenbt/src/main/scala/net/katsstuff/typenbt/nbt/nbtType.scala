@@ -55,6 +55,7 @@ object NBTType {
     case 9  => Some(NBTView.TagList)
     case 10 => Some(NBTView.TagCompound)
     case 11 => Some(NBTView.TagIntArray)
+    case 12 => Some(NBTView.TagLongArray)
     case _  => None
   }
 }
@@ -72,6 +73,7 @@ trait NBTTypeInstances extends NBTViewInstances {
   val TagString    = TAG_String
   val TagCompound  = TAG_Compound
   val TagIntArray  = TAG_Int_Array
+  val TagLongArray = TAG_Long_Array
   val TagList      = TAG_List
 
   case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
@@ -134,6 +136,11 @@ trait NBTTypeInstances extends NBTViewInstances {
   implicit case object TAG_Int_Array extends NBTType[IndexedSeq[Int], NBTIntArray] {
     override def id: Byte = 11
     override def apply(v: IndexedSeq[Int]): NBTIntArray = NBTIntArray(v)
+  }
+
+  implicit case object TAG_Long_Array extends NBTType[IndexedSeq[Long], NBTLongArray] {
+    override def id: Byte = 12
+    override def apply(v: IndexedSeq[Long]): NBTLongArray = NBTLongArray(v)
   }
 
   //We allow creating new list types for type sake

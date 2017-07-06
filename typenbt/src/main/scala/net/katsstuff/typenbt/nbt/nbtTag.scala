@@ -360,3 +360,8 @@ final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
   override type Self = NBTIntArray
   override def nbtType: NBTType[Repr, Self] = NBTView.TagIntArray
 }
+final case class NBTLongArray(value: IndexedSeq[Long]) extends NBTTag {
+  override type Self = NBTLongArray
+  override type Repr = IndexedSeq[Long]
+  override def nbtType: NBTType[IndexedSeq[Long], NBTLongArray] = NBTView.TagLongArray
+}

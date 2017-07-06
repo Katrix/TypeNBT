@@ -135,6 +135,13 @@ object IOTools {
       case (f @ Failure(_), _) => f
     }
 
+  private def writeLongArray(stream: DataOutputStream, array: Array[Long]): Try[Unit] = {
+    array.foldLeft(Try(stream.writeInt(array.length))) {
+      case (Success(_), long)   => Try(stream.writeLong(long))
+      case (f @ Failure(_), _) => f
+    }
+  }
+
   private def writeType(stream: DataOutputStream, tagType: NBTType[_, _ <: NBTTag]): Try[Unit] = Try(stream.writeByte(tagType.id))
 
   private def writeTag(stream: DataOutputStream, nbt: NBTTag): Try[Unit] =
@@ -149,7 +156,8 @@ object IOTools {
       case NBTString(s)        => writeString(stream, s)
       case list:     NBTList[_, _] => writeList(stream, list)
       case compound: NBTCompound   => writeCompound(stream, compound)
-      case NBTIntArray(intArray) => writeIntArray(stream, intArray.toArray)
+      case NBTIntArray(intArray)   => writeIntArray(stream, intArray.toArray)
+      case NBTLongArray(longArray) => writeLongArray(stream, longArray.toArray)
     }
 
   @tailrec
@@ -199,7 +207,7 @@ object IOTools {
     Try(stream.readInt()).flatMap(length => {
       val bytes     = new Array[Byte](length)
       val readBytes = Try(stream.readFully(bytes))
-      readBytes.map(u => bytes)
+      readBytes.map(_ => bytes)
     })
 
   private def readIntArray(stream: DataInputStream): Try[Array[Int]] =
@@ -210,7 +218,19 @@ object IOTools {
           case (Success(_), i)     => Try(array(i) = stream.readInt())
           case (f @ Failure(_), _) => f
         }
-        res.map(u => array)
+        res.map(_ => array)
+      })
+      .flatten
+
+  private def readLongArray(stream: DataInputStream): Try[Array[Long]] =
+    Try(stream.readInt())
+      .map(length => {
+        val array = new Array[Long](length)
+        val res = (0 until length).foldLeft(Success(Unit): Try[Unit]) {
+          case (Success(_), i)     => Try(array(i) = stream.readLong())
+          case (f @ Failure(_), _) => f
+        }
+        res.map(_ => array)
       })
       .flatten
 
@@ -231,6 +251,7 @@ object IOTools {
     case NBTView.TagList       => readList(stream)
     case NBTView.TagCompound   => readCompound(stream, NBTCompound())
     case NBTView.TagIntArray   => readIntArray(stream).map(a => NBTIntArray(a))
+    case NBTView.TagLongArray  => readLongArray(stream).map(a => NBTLongArray(a))
     case NBTView.TagEnd        => throw new IOException("Unexpected end tag")
   }
 }
