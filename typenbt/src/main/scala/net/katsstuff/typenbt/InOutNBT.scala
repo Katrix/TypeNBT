@@ -18,7 +18,7 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package net.katsstuff.typenbt.misc
+package net.katsstuff.typenbt
 
 import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
 import java.nio.charset.StandardCharsets
@@ -27,9 +27,7 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-import net.katsstuff.typenbt._
-
-object IOTools {
+object InOutNBT {
 
   private final val UTF8 = StandardCharsets.UTF_8
 
@@ -164,75 +162,65 @@ object IOTools {
   private def readCompound(stream: DataInputStream, compound: NBTCompound): Try[NBTCompound] =
     //We match to be tail recursive
     readType(stream) match {
+      case Success(NBTView.TagEnd) => Success(compound)
       case Success(nbtType) =>
-        if (nbtType == NBTView.TagEnd) Success(compound)
-        else {
-          readString(stream) match {
-            case Success(name) =>
-              readTag(stream, nbtType) match {
-                case Success(tag)                   => readCompound(stream, compound.set(name, tag))
-                case f: Failure[Nothing @unchecked] => f
-              }
-            case f: Failure[Nothing @unchecked] => f
-          }
+        readString(stream) match {
+          case Success(name) =>
+            readTag(stream, nbtType) match {
+              case Success(tag)                   => readCompound(stream, compound.set(name, tag))
+              case f: Failure[Nothing @unchecked] => f
+            }
+          case f: Failure[Nothing @unchecked] => f
         }
       case f: Failure[Nothing @unchecked] => f
     }
 
   private def readString(stream: DataInputStream): Try[String] =
-    Try(stream.readShort()).flatMap(length => {
-      val characters = new Array[Byte](length)
-      val readBytes  = Try(stream.readFully(characters))
-      readBytes.map(_ => new String(characters, UTF8))
-    })
+    for {
+      length <- Try(stream.readShort())
+      characters = new Array[Byte](length)
+      _ <- Try(stream.readFully(characters))
+    } yield new String(characters, UTF8)
 
   private type AnyTag = NBTTag.Aux[Any]
 
-  private def readList(stream: DataInputStream): Try[NBTTag] = {
-    val ret = readType(stream).map { nbtType =>
-      val listType = new NBTListType(nbtType.asInstanceOf[NBTType[Any, AnyTag]])
-
-      Try(stream.readInt()).flatMap { length =>
-        (0 until length).foldLeft(Try(NBTList()(listType))) {
-          case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
-          case (f @ Failure(_), _) => f
-        }
+  private def readList(stream: DataInputStream): Try[NBTTag] =
+    for {
+      nbtType <- readType(stream)
+      listType = new NBTListType(nbtType.asInstanceOf[NBTType[Any, AnyTag]])
+      length <- Try(stream.readInt())
+      res <- (0 until length).foldLeft(Try(NBTList()(listType))) {
+        case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
+        case (f @ Failure(_), _) => f
       }
-    }
-
-    ret.flatten
-  }
+    } yield res
 
   private def readByteArray(stream: DataInputStream): Try[Array[Byte]] =
-    Try(stream.readInt()).flatMap(length => {
-      val bytes     = new Array[Byte](length)
-      val readBytes = Try(stream.readFully(bytes))
-      readBytes.map(_ => bytes)
-    })
+    for {
+      length <- Try(stream.readInt())
+      bytes = new Array[Byte](length)
+      _ <- Try(stream.readFully(bytes))
+    } yield bytes
 
   private def readIntArray(stream: DataInputStream): Try[Array[Int]] =
-    Try(stream.readInt())
-      .map(length => {
-        val array = new Array[Int](length)
-        val res = (0 until length).foldLeft(Success(Unit): Try[Unit]) {
-          case (Success(_), i)     => Try(array(i) = stream.readInt())
-          case (f @ Failure(_), _) => f
-        }
-        res.map(_ => array)
-      })
-      .flatten
+    for {
+      length <- Try(stream.readInt())
+      array = new Array[Int](length)
+      _ <- (0 until length).foldLeft[Try[Unit]](Success(Unit)) {
+        case (Success(_), i)     => Try(array(i) = stream.readInt())
+        case (f @ Failure(_), _) => f
+      }
+    } yield array
 
   private def readLongArray(stream: DataInputStream): Try[Array[Long]] =
-    Try(stream.readInt())
-      .map(length => {
-        val array = new Array[Long](length)
-        val res = (0 until length).foldLeft(Success(Unit): Try[Unit]) {
-          case (Success(_), i)     => Try(array(i) = stream.readLong())
-          case (f @ Failure(_), _) => f
-        }
-        res.map(_ => array)
-      })
-      .flatten
+    for {
+      length <- Try(stream.readInt())
+      array = new Array[Long](length)
+      _ <- (0 until length).foldLeft[Try[Unit]](Success(Unit)) {
+        case (Success(_), i)     => Try(array(i) = stream.readLong())
+        case (f @ Failure(_), _) => f
+      }
+    } yield array
 
   private def readType(stream: DataInputStream): Try[NBTType[Any, _ <: AnyTag]] = Try {
     val byte = stream.readByte()

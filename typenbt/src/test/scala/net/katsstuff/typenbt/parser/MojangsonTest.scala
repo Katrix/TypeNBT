@@ -30,7 +30,7 @@ import org.scalatest.{FunSuite, Matchers}
 
 import fastparse.noApi._
 import net.katsstuff.typenbt._
-import net.katsstuff.typenbt.parser.Mojangson.MojangsonParser
+import Mojangson.MojangsonParser
 
 class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with NBTGenerator { self =>
 

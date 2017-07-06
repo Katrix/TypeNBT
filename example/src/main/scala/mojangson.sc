@@ -1,5 +1,4 @@
 import net.katsstuff.typenbt._
-import net.katsstuff.typenbt.parser.Mojangson
 
 val nbtString = """{ }"""
 
