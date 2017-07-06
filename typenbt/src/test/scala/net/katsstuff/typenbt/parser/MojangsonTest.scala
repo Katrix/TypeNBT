@@ -50,17 +50,17 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
         case Parsed.Success(parsedVal, _) => implicitly[Equality[A]].areEqual(parsedVal, element)
       }
     override def containsOneOf(container: Parsed[A], elements: Seq[Any]): Boolean = {
-      val eqal = implicitly[Equality[A]]
+      val equal = implicitly[Equality[A]]
       container match {
         case Parsed.Failure(_, _, _)      => false
-        case Parsed.Success(parsedVal, _) => elements.exists(eqal.areEqual(parsedVal, _))
+        case Parsed.Success(parsedVal, _) => elements.exists(equal.areEqual(parsedVal, _))
       }
     }
     override def containsNoneOf(container: Parsed[A], elements: Seq[Any]): Boolean = {
-      val eqal = implicitly[Equality[A]]
+      val equal = implicitly[Equality[A]]
       container match {
         case Parsed.Failure(_, _, _)      => false
-        case Parsed.Success(parsedVal, _) => elements.forall(!eqal.areEqual(parsedVal, _))
+        case Parsed.Success(parsedVal, _) => elements.forall(!equal.areEqual(parsedVal, _))
       }
     }
   }
@@ -73,37 +73,27 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
     case _                 => true
   }
 
-  private def stringLiteralValid(string: String): Boolean =
-    !string.contains("\"")
-
-  private def tagNameValid(string: String): Boolean =
-    string.nonEmpty && string.forall(c => !":{}[]".contains(c)) && !string.matches("""\s""")
+  private def tagNameValid(string: String): Boolean = string.nonEmpty
 
   test("stringLiteral should accept any string with quotes at the start and end") {
-    forAll { string: String =>
-      whenever(stringLiteralValid(string)) {
-        val addedSign = "\"" + string + "\""
-        val parsed    = MojangsonParser.stringLiteral.parse(addedSign)
-        parsed should contain(addedSign)
-      }
+    forAll(Gen.alphaNumStr) { string: String =>
+      val addedString = "\"" + string + "\""
+      val parsed      = MojangsonParser.stringLiteral.parse(addedString)
+      parsed should contain(addedString)
     }
   }
   test("stringLiteral should fail if the string is missing a quotes at the start") {
-    forAll { string: String =>
-      whenever(stringLiteralValid(string)) {
-        val addedSign = string + "\""
-        val parsed    = MojangsonParser.stringLiteral.parse(addedSign)
-        parsed shouldNot contain(addedSign)
-      }
+    forAll(Gen.alphaNumStr) { string: String =>
+      val addedSign = string + "\""
+      val parsed    = MojangsonParser.stringLiteral.parse(addedSign)
+      parsed shouldNot contain(addedSign)
     }
   }
   test("stringLiteral should fail if the string is missing a quotes at the end") {
-    forAll { string: String =>
-      whenever(stringLiteralValid(string)) {
-        val addedSign = "\"" + string
-        val parsed    = MojangsonParser.stringLiteral.parse(addedSign)
-        parsed shouldNot contain(addedSign)
-      }
+    forAll(Gen.alphaNumStr) { string: String =>
+      val addedSign = "\"" + string
+      val parsed    = MojangsonParser.stringLiteral.parse(addedSign)
+      parsed shouldNot contain(addedSign)
     }
   }
 
@@ -134,7 +124,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
   }
 
   test("tagName should parse nonempty strings without colon") {
-    forAll { string: String =>
+    forAll(Gen.alphaNumStr) { string: String =>
       whenever(tagNameValid(string)) {
         val parsed = MojangsonParser.tagName.parse(string)
         parsed should contain(string)
@@ -208,7 +198,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
   }
 
   test("nbtNamedTag should parse a tagname, followed by a colon and then a tag") {
-    forAll { (nbtTag: NBTTag, tagName: String) =>
+    forAll(genNbt, Gen.alphaNumStr) { (nbtTag: NBTTag, tagName: String) =>
       whenever(tagNameValid(tagName) && validMojangsonTag(nbtTag)) {
         val string = s"$tagName:${Mojangson.toMojangson(nbtTag)}"
         val parsed = MojangsonParser.nbtNamedTag.parse(string)

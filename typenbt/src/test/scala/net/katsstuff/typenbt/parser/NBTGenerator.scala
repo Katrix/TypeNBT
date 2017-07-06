@@ -28,14 +28,18 @@ import net.katsstuff.typenbt._
 
 trait NBTGenerator {
 
+  final val Epsilon = 1E5
+  val saneDouble: Gen[Double] = Gen.choose(-Epsilon, Epsilon)
+  val saneFloat: Gen[Float] = Gen.choose(-Epsilon.toFloat, Epsilon.toFloat)
+
   val genNbtByte:      Gen[NBTByte]      = for (v <- arbitrary[Byte]) yield NBTByte(v)
   val genNbtShort:     Gen[NBTShort]     = for (v <- arbitrary[Short]) yield NBTShort(v)
   val genNbtInt:       Gen[NBTInt]       = for (v <- arbitrary[Int]) yield NBTInt(v)
   val genNbtLong:      Gen[NBTLong]      = for (v <- arbitrary[Long]) yield NBTLong(v)
-  val genNbtFloat:     Gen[NBTFloat]     = for (v <- arbitrary[Float]) yield NBTFloat(v)
-  val genNbtDouble:    Gen[NBTDouble]    = for (v <- arbitrary[Double]) yield NBTDouble(v)
+  val genNbtFloat:     Gen[NBTFloat]     = for (v <- saneFloat) yield NBTFloat(v)
+  val genNbtDouble:    Gen[NBTDouble]    = for (v <- saneDouble) yield NBTDouble(v)
   val genNbtByteArray: Gen[NBTByteArray] = for (v <- arbitrary[IndexedSeq[Byte]]) yield NBTByteArray(v)
-  val genNbtString:    Gen[NBTString]    = for (v <- arbitrary[String]) yield NBTString(v)
+  val genNbtString:    Gen[NBTString]    = for (v <- Gen.alphaNumStr.suchThat(_.length < 80)) yield NBTString(v)
   val genNbtIntArray:  Gen[NBTIntArray]  = for (v <- arbitrary[IndexedSeq[Int]]) yield NBTIntArray(v)
 
   implicit val arbitraryNbtByte:      Arbitrary[NBTByte]      = Arbitrary(genNbtByte)
@@ -63,7 +67,7 @@ trait NBTGenerator {
 
   def genNonEmptyNbtCompound(compound: NBTCompound): Gen[NBTCompound] =
     for {
-      k <- arbitrary[String].suchThat(string => string.nonEmpty && !string.matches("""\s""") && !string.contains(":"))
+      k <- Gen.alphaNumStr.suchThat(string => string.nonEmpty && !string.matches("""\s"""))
       v <- arbitrary[NBTTag]
       m <- oneOf(Gen.const(compound), genNonEmptyNbtCompound(compound.set(k, v)))
     } yield m

@@ -38,10 +38,10 @@ object Mojangson {
 
   object MojangsonParser {
 
-    private case class RegexParser(regex: Regex, maxLength: Int = 80)
+    private case class RegexParser(regex: Regex)
         extends fastparse.core.Parser[Unit, Char, String]()(fastparse.StringReprOps) /*ambigous implicit*/ {
       override def parseRec(cfg: ParseCtx[Char, String], index: Int): Mutable[Unit, Char, String] =
-        regex.findPrefixOf(cfg.input.slice(index, maxLength)) match {
+        regex.findPrefixOf(cfg.input.slice(index, 9999999)) match {
           case Some(parsed) => success(cfg.success, (), index + reprOps.length(parsed), Set.empty, cut = false)
           case None         => fail(cfg.failure, index)
         }
