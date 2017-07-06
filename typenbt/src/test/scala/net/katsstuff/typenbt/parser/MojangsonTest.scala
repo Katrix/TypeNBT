@@ -21,7 +21,6 @@
 package net.katsstuff.typenbt.parser
 
 import org.scalacheck._
-import org.scalacheck.Arbitrary.arbitrary
 import org.scalactic.Equality
 import org.scalactic.anyvals.PosInt
 import org.scalatest.enablers.Containing
@@ -30,7 +29,7 @@ import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 
 import fastparse.noApi._
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 import net.katsstuff.typenbt.parser.Mojangson.MojangsonParser
 
 class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with NBTGenerator { self =>

@@ -18,14 +18,14 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package net.katsstuff.typenbt
+package net.katsstuff
 
 import scala.language.implicitConversions
 
-import net.katsstuff.typenbt.nbt.NBTType.InferTypeFromRepr
-import net.katsstuff.typenbt.nbt.NBTView.InferViewFromRepr
+import net.katsstuff.typenbt.NBTType.InferTypeFromRepr
+import net.katsstuff.typenbt.NBTView.InferViewFromRepr
 
-package object nbt {
+package object typenbt {
 
   implicit def applyViewInfer[Repr, NBT <: NBTTag](infer: InferViewFromRepr[Repr])(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] = infer.infer[NBT]
   implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = infer.infer[NBT]

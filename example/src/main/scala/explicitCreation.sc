@@ -1,4 +1,4 @@
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 
 NBTInt(5)
 NBTBoolean(false)

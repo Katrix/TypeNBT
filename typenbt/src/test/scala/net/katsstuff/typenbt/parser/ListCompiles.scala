@@ -26,21 +26,21 @@ class ListCompiles extends FunSuite with Matchers {
 
   test("NBTList with normal int tag compiles") {
     """
-      |import net.katsstuff.typenbt.nbt.{NBTInt, NBTList}
+      |import net.katsstuff.typenbt.{NBTInt, NBTList}
       |NBTList(Seq(NBTInt(5), NBTInt(4), NBTInt(3)))
     """.stripMargin should compile
   }
 
   test("NBTList with ints doesn't typeCheck") {
     """
-      |import net.katsstuff.typenbt.nbt.NBTList
+      |import net.katsstuff.typenbt.NBTList
       |NBTList(Seq(5, 4, 3))
     """.stripMargin shouldNot typeCheck
   }
 
   test("Nested NBTList with int should compile") {
     """
-      |import net.katsstuff.typenbt.nbt.{NBTInt, NBTList}
+      |import net.katsstuff.typenbt.{NBTInt, NBTList}
       |NBTList(Seq(NBTList(Seq(NBTInt(1)))))
     """.stripMargin should compile
   }

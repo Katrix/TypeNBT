@@ -18,7 +18,7 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package net.katsstuff.typenbt.nbt
+package net.katsstuff.typenbt
 
 /**
 	* A specific type of [[NBTTag]]. Contains constructor and deconstructer, in addition to the numerical id.

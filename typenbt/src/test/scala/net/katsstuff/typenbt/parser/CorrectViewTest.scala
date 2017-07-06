@@ -22,7 +22,7 @@ package net.katsstuff.typenbt.parser
 
 import org.scalatest.{FunSuite, Matchers}
 
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 
 class CorrectViewTest extends FunSuite with Matchers {
 

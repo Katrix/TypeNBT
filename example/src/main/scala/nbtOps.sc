@@ -1,4 +1,4 @@
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 
 val nbt = 5.nbt
 nbt.set(10)

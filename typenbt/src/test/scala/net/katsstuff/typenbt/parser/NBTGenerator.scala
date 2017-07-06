@@ -23,7 +23,8 @@ package net.katsstuff.typenbt.parser
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen._
 import org.scalacheck._
-import net.katsstuff.typenbt.nbt._
+
+import net.katsstuff.typenbt._
 
 trait NBTGenerator {
 

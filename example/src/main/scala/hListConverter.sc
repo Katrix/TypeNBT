@@ -1,6 +1,6 @@
 import java.util.UUID
 
-import net.katsstuff.typenbt.nbt.NBTCompound
+import net.katsstuff.typenbt._
 import shapeless._
 
 

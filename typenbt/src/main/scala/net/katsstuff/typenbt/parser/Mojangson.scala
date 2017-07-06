@@ -25,12 +25,12 @@ import scala.util.matching.Regex
 import fastparse.WhitespaceApi
 import fastparse.core.{Mutable, ParseCtx}
 import fastparse.noApi._
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 
 object Mojangson {
 
   /**
-		* Parse mojangson into a [[net.katsstuff.typenbt.nbt.NBTTag]]
+		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
 		*/
   def fromMojangson(mojangson: String): Either[String, NBTTag] = MojangsonParser.wholeNbt.parse(mojangson) match {
     case Parsed.Success(unknownNbt, _) => Right(unknownNbt)
@@ -96,8 +96,8 @@ object Mojangson {
     val nbtCompound: Parser[NBTCompound]      = P(compoundStart ~/ nbtNamedTag.rep(sep = comma.~/) ~ compoundEnd).map(xs => NBTCompound(xs.toMap))
     val nbtIntArray: Parser[NBTIntArray]      = P(listStart ~/ wholeNumber.rep(sep = comma.~/) ~ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
 
-    val indexedTag: Parser[(Int, NBTTag)] = P(tagIndex ~ colon ~ nbtTag)
-    val nbtList = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~ listEnd)
+    val indexedTag: Parser[(Int, NBTTag)]           = P(tagIndex ~ colon ~ nbtTag)
+    val nbtList:    Parser[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~ listEnd)
       .filter {
         case seq if seq.nonEmpty =>
           val head     = seq.head._2
@@ -123,7 +123,7 @@ object Mojangson {
   }
 
   /**
-		* Convert a [[net.katsstuff.typenbt.nbt.NBTTag]] to mojangson.
+		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson.
 		*/
   def toMojangson(tag: NBTTag): String = tag match {
     case NBTByte(b)          => s"${b}b"
@@ -170,7 +170,7 @@ object Mojangson {
   }
 
   /**
-		* Convert a [[net.katsstuff.typenbt.nbt.NBTTag]] to mojangson with indentation
+		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson with indentation
 		*
 		* @param tag The tag to convert
 		* @param indentLevel How many indent characters to insert per level

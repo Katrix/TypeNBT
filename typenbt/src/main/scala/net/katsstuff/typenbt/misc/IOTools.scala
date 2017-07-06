@@ -27,14 +27,14 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 
 object IOTools {
 
   private final val UTF8 = StandardCharsets.UTF_8
 
   /**
-		* Writes an [[net.katsstuff.typenbt.nbt.NBTCompound]] to an [[java.io.OutputStream]]
+		* Writes an [[net.katsstuff.typenbt.NBTCompound]] to an [[java.io.OutputStream]]
 		*
 		* @param stream The stream to write to
 		* @param compound The tag to write out
@@ -58,11 +58,11 @@ object IOTools {
   }
 
   /**
-		* Reads an [[net.katsstuff.typenbt.nbt.NBTCompound]] from an [[java.io.InputStream]]
+		* Reads an [[net.katsstuff.typenbt.NBTCompound]] from an [[java.io.InputStream]]
 		*
 		* @param stream The stream to read from
-		* @param gzip If the [[net.katsstuff.typenbt.nbt.NBTCompound]] to read from the stream is GZiped or not
-		* @return A tuple compromising of the [[net.katsstuff.typenbt.nbt.NBTCompound]] read, as well as the root name
+		* @param gzip If the [[net.katsstuff.typenbt.NBTCompound]] to read from the stream is GZiped or not
+		* @return A tuple compromising of the [[net.katsstuff.typenbt.NBTCompound]] read, as well as the root name
 		*/
   def readFrom(stream: InputStream, gzip: Boolean): Try[(String, NBTCompound)] = {
     val newStream = new DataInputStream(
@@ -183,7 +183,7 @@ object IOTools {
     Try(stream.readShort()).flatMap(length => {
       val characters = new Array[Byte](length)
       val readBytes  = Try(stream.readFully(characters))
-      readBytes.map(u => new String(characters, UTF8))
+      readBytes.map(_ => new String(characters, UTF8))
     })
 
   private type AnyTag = NBTTag.Aux[Any]

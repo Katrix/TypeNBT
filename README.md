@@ -26,18 +26,18 @@ Why did I decide to write TypeNBT and not just use something that already existe
 ## Using TypeNBT
 
 Here is some informatio about how to use TypeNBT in practice.
-For all of these, make sure you import `net.katsstuff.typenbt.nbt._`.
+For all of these, make sure you import `net.katsstuff.typenbt._`.
 
 ## Creating NBTTag, and about NBTView and NBTType
 
 Converting a value to nbt can be done like this:
 ```scala
-import net.katsstuff.typenbt.nbt.NBTView.ReprOps
+import net.katsstuff.typenbt._
 5.nbt //Int, return NBTInt
 "hi".nbt //String, returns NBTString
 false.nbt //Boolean, returns NBTByte
 IndexedSeq(2, 5).nbt //IndexedSeq[Int], returns NBTIntArray
-NBTList(1, 2, 3) //You can also create the NBTTag more explicitly
+NBTInt(1) //You can also create the NBTTag more explicitly
 ```
 
 Behind the scenes this uses an implicit object called NBTView. NBTView takes two type members, the target(NBT), and the origin(Repr). NBTView has two methods, `apply` to construct an `NBT` from `Repr`, and `unapply` to deconstruct an `NBT` to `Repr`. If you whish to easily convert a data structure to nbt, all you have to do is to write an implicit NBTView for your datatype, and make sure it's in scope. (Derivation of NBTView is currently broken for case classes.)
@@ -50,7 +50,7 @@ TypeNBT allows you to convert a `HList` into a `NBTCompound` or add a `HList` to
 
 ## On multiple type parameter lists
 
-For some methods like `nbtCompound.getValue`, TypeNBT uses multiple parameter lists in the form of anonymous classes. Unless you really want to, you generally only have to fill in one of them.
+For some methods like `NBTCompount#getValue`, TypeNBT uses multiple parameter lists in the form of anonymous classes. Unless you really want to, you generally only have to fill in one of them.
 
 ## Mojangson
 TypeNBT includes a Mojangson parser that let's you easily both parse mojangson, as well as convert to mojangson. Simply use `Mojangson.toMojangson` and `Mojangson.fromMojangson`

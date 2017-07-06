@@ -1,4 +1,4 @@
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 
 val boolTag = NBTBoolean(false)
 val NBTBoolean(bool) = boolTag

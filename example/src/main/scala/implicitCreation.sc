@@ -1,4 +1,4 @@
-import net.katsstuff.typenbt.nbt._
+import net.katsstuff.typenbt._
 import shapeless._
 
 5.nbt
