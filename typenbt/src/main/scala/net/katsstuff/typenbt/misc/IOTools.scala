@@ -76,7 +76,7 @@ object IOTools {
             name <- readString(newStream)
             tag  <- readCompound(newStream, NBTCompound())
           } yield (name, tag)
-        case Success(_) => Failure(throw new IOException("Wrong starting type for NBT"))
+        case Success(_)                     => Failure(throw new IOException("Wrong starting type for NBT"))
         case f: Failure[Nothing @unchecked] => f
       }
     } finally {
@@ -137,7 +137,7 @@ object IOTools {
 
   private def writeLongArray(stream: DataOutputStream, array: Array[Long]): Try[Unit] = {
     array.foldLeft(Try(stream.writeInt(array.length))) {
-      case (Success(_), long)   => Try(stream.writeLong(long))
+      case (Success(_), long)  => Try(stream.writeLong(long))
       case (f @ Failure(_), _) => f
     }
   }
@@ -146,15 +146,15 @@ object IOTools {
 
   private def writeTag(stream: DataOutputStream, nbt: NBTTag): Try[Unit] =
     nbt match {
-      case NBTByte(b)          => Try(stream.writeByte(b))
-      case NBTShort(s)         => Try(stream.writeShort(s))
-      case NBTInt(i)           => Try(stream.writeInt(i))
-      case NBTLong(l)          => Try(stream.writeLong(l))
-      case NBTFloat(f)         => Try(stream.writeFloat(f))
-      case NBTDouble(d)        => Try(stream.writeDouble(d))
-      case NBTByteArray(array) => writeByteArray(stream, array.toArray)
-      case NBTString(s)        => writeString(stream, s)
-      case list:     NBTList[_, _] => writeList(stream, list)
+      case NBTByte(b)              => Try(stream.writeByte(b))
+      case NBTShort(s)             => Try(stream.writeShort(s))
+      case NBTInt(i)               => Try(stream.writeInt(i))
+      case NBTLong(l)              => Try(stream.writeLong(l))
+      case NBTFloat(f)             => Try(stream.writeFloat(f))
+      case NBTDouble(d)            => Try(stream.writeDouble(d))
+      case NBTByteArray(array)     => writeByteArray(stream, array.toArray)
+      case NBTString(s)            => writeString(stream, s)
+      case list: NBTList[_, _]     => writeList(stream, list)
       case compound: NBTCompound   => writeCompound(stream, compound)
       case NBTIntArray(intArray)   => writeIntArray(stream, intArray.toArray)
       case NBTLongArray(longArray) => writeLongArray(stream, longArray.toArray)
@@ -170,7 +170,7 @@ object IOTools {
           readString(stream) match {
             case Success(name) =>
               readTag(stream, nbtType) match {
-                case Success(tag) => readCompound(stream, compound.set(name, tag))
+                case Success(tag)                   => readCompound(stream, compound.set(name, tag))
                 case f: Failure[Nothing @unchecked] => f
               }
             case f: Failure[Nothing @unchecked] => f
@@ -240,18 +240,18 @@ object IOTools {
   }
 
   private def readTag[Repr](stream: DataInputStream, nbtType: NBTType[Repr, _ <: NBTTag.Aux[Repr]]): Try[NBTTag] = (nbtType: @unchecked) match {
-    case NBTView.TagByte       => Try(NBTByte(stream.readByte()))
-    case NBTView.TagShort      => Try(NBTShort(stream.readShort()))
-    case NBTView.TagInt        => Try(NBTInt(stream.readInt()))
-    case NBTView.TagLong       => Try(NBTLong(stream.readLong()))
-    case NBTView.TagFloat      => Try(NBTFloat(stream.readFloat()))
-    case NBTView.TagDouble     => Try(NBTDouble(stream.readDouble()))
-    case NBTView.TagByteArray  => readByteArray(stream).map(a => NBTByteArray(a))
-    case NBTView.TagString     => readString(stream).map(s => NBTString(s))
-    case NBTView.TagList       => readList(stream)
-    case NBTView.TagCompound   => readCompound(stream, NBTCompound())
-    case NBTView.TagIntArray   => readIntArray(stream).map(a => NBTIntArray(a))
-    case NBTView.TagLongArray  => readLongArray(stream).map(a => NBTLongArray(a))
-    case NBTView.TagEnd        => throw new IOException("Unexpected end tag")
+    case NBTView.TagByte      => Try(NBTByte(stream.readByte()))
+    case NBTView.TagShort     => Try(NBTShort(stream.readShort()))
+    case NBTView.TagInt       => Try(NBTInt(stream.readInt()))
+    case NBTView.TagLong      => Try(NBTLong(stream.readLong()))
+    case NBTView.TagFloat     => Try(NBTFloat(stream.readFloat()))
+    case NBTView.TagDouble    => Try(NBTDouble(stream.readDouble()))
+    case NBTView.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a))
+    case NBTView.TagString    => readString(stream).map(s => NBTString(s))
+    case NBTView.TagList      => readList(stream)
+    case NBTView.TagCompound  => readCompound(stream, NBTCompound())
+    case NBTView.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a))
+    case NBTView.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a))
+    case NBTView.TagEnd       => throw new IOException("Unexpected end tag")
   }
 }

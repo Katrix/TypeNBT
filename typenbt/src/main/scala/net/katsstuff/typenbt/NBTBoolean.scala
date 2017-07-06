@@ -21,6 +21,6 @@
 package net.katsstuff.typenbt
 
 object NBTBoolean extends NBTViewCaseLike[Boolean, NBTByte] {
-  override def toNbt(v:     Boolean): NBTByte         = NBTByte(if (v) 1 else 0)
+  override def toNbt(v: Boolean):     NBTByte         = NBTByte(if (v) 1 else 0)
   override def fromNbt(arg: NBTByte): Option[Boolean] = Some(arg.value == 1)
 }

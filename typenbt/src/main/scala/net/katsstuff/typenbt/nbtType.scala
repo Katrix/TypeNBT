@@ -26,7 +26,7 @@ package net.katsstuff.typenbt
 sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends NBTView[Repr, NBT] {
   def id: Byte
   override def fromNbt(arg: NBT): Option[Repr] = Some(arg.value)
-  def fromNbtNoOption(arg: NBT): Repr = arg.value
+  def fromNbtNoOption(arg: NBT):  Repr         = arg.value
 }
 
 object NBTType {
@@ -78,75 +78,75 @@ trait NBTTypeInstances extends NBTViewInstances {
   val TagList      = TAG_List
 
   case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
-    override def id: Byte = throw new IllegalStateException("Tried to get ID for any tag")
+    override def id:            Byte            = throw new IllegalStateException("Tried to get ID for any tag")
     override def toNbt(v: Any): NBTTag.Aux[Any] = throw new IllegalStateException("Tried to construct any tag")
   }
 
   //Official names for them
   case object TAG_End extends NBTType[Nothing, NBTEnd] {
-    override def id: Byte = 0
-    override def toNbt(v:     Nothing): NBTEnd          = throw new IllegalStateException("Tried to construct end tag")
-    override def fromNbt(arg: NBTEnd):     Option[Nothing] = throw new IllegalStateException("Tried to deconstruct end tag")
+    override def id:                   Byte            = 0
+    override def toNbt(v: Nothing):    NBTEnd          = throw new IllegalStateException("Tried to construct end tag")
+    override def fromNbt(arg: NBTEnd): Option[Nothing] = throw new IllegalStateException("Tried to deconstruct end tag")
   }
 
   implicit case object TAG_Byte extends NBTType[Byte, NBTByte] {
-    override def id: Byte = 1
+    override def id:             Byte    = 1
     override def toNbt(v: Byte): NBTByte = NBTByte(v)
   }
 
   implicit case object TAG_Short extends NBTType[Short, NBTShort] {
-    override def id: Byte = 2
+    override def id:              Byte     = 2
     override def toNbt(v: Short): NBTShort = NBTShort(v)
   }
 
   implicit case object TAG_Int extends NBTType[Int, NBTInt] {
-    override def id: Byte = 3
+    override def id:            Byte   = 3
     override def toNbt(v: Int): NBTInt = NBTInt(v)
   }
 
   implicit case object TAG_Long extends NBTType[Long, NBTLong] {
-    override def id: Byte = 4
+    override def id:             Byte    = 4
     override def toNbt(v: Long): NBTLong = NBTLong(v)
   }
 
   implicit case object TAG_Float extends NBTType[Float, NBTFloat] {
-    override def id: Byte = 5
+    override def id:              Byte     = 5
     override def toNbt(v: Float): NBTFloat = NBTFloat(v)
   }
 
   implicit case object TAG_Double extends NBTType[Double, NBTDouble] {
-    override def id: Byte = 6
+    override def id:               Byte      = 6
     override def toNbt(v: Double): NBTDouble = NBTDouble(v)
   }
 
   implicit case object TAG_Byte_Array extends NBTType[IndexedSeq[Byte], NBTByteArray] {
-    override def id: Byte = 7
+    override def id:                         Byte         = 7
     override def toNbt(v: IndexedSeq[Byte]): NBTByteArray = NBTByteArray(v)
   }
 
   implicit case object TAG_String extends NBTType[String, NBTString] {
-    override def id: Byte = 8
+    override def id:               Byte      = 8
     override def toNbt(v: String): NBTString = NBTString(v)
   }
 
   implicit case object TAG_Compound extends NBTType[Map[String, NBTTag], NBTCompound] {
-    override def id: Byte = 10
+    override def id:                            Byte        = 10
     override def toNbt(v: Map[String, NBTTag]): NBTCompound = NBTCompound(v)
   }
 
   implicit case object TAG_Int_Array extends NBTType[IndexedSeq[Int], NBTIntArray] {
-    override def id: Byte = 11
+    override def id:                        Byte        = 11
     override def toNbt(v: IndexedSeq[Int]): NBTIntArray = NBTIntArray(v)
   }
 
   implicit case object TAG_Long_Array extends NBTType[IndexedSeq[Long], NBTLongArray] {
-    override def id: Byte = 12
+    override def id:                         Byte         = 12
     override def toNbt(v: IndexedSeq[Long]): NBTLongArray = NBTLongArray(v)
   }
 
   //We allow creating new list types for type sake
   sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType[ElementRepr, ElementNBT])
-    extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
+      extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
     override def id: Byte = 11
 
     override def toNbt(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =

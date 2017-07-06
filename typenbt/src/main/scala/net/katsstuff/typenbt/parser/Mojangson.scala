@@ -96,8 +96,8 @@ object Mojangson {
     val nbtCompound: Parser[NBTCompound]      = P(compoundStart ~/ nbtNamedTag.rep(sep = comma.~/) ~ compoundEnd).map(xs => NBTCompound(xs.toMap))
     val nbtIntArray: Parser[NBTIntArray]      = P(listStart ~/ wholeNumber.rep(sep = comma.~/) ~ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
 
-    val indexedTag: Parser[(Int, NBTTag)]           = P(tagIndex ~ colon ~ nbtTag)
-    val nbtList:    Parser[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~ listEnd)
+    val indexedTag: Parser[(Int, NBTTag)] = P(tagIndex ~ colon ~ nbtTag)
+    val nbtList: Parser[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~ listEnd)
       .filter {
         case seq if seq.nonEmpty =>
           val head     = seq.head._2

@@ -97,7 +97,7 @@ final case class NBTString(value: String) extends NBTTag {
 }
 
 final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
-  value:                Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq()
+    value: Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq()
 )(implicit val nbtType: NBTTypeInstances#NBTListType[ElementRepr, ElementNBT])
     extends NBTTag {
 
@@ -161,7 +161,8 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   def ++[Input <: HList, Mapped <: HList, Traversed](hList: Input)(
       implicit mapper: Mapper.Aux[NBTCompound.tupleToNBT.type, Input, Mapped],
       toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-      evidence: Traversed <:< (String, NBTTag)): NBTCompound = this.merge(NBTCompound.fromHList(hList))
+      evidence: Traversed <:< (String, NBTTag)
+  ): NBTCompound = this.merge(NBTCompound.fromHList(hList))
 
   /**
 		* Creates a new [[NBTCompound]] with the key-value pair appended.
@@ -250,7 +251,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
     else
       get(keys.head) match {
         case Some(compound: NBTCompound) => compound.getRecursive(tail: _*)
-        case _ => None
+        case _                           => None
       }
   }
 
@@ -333,13 +334,13 @@ object NBTCompound {
   def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
       implicit mapper: Mapper.Aux[tupleToNBT.type, Input, Mapped],
       toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-      evidence: Traversed <:< (String, NBTTag)) =
+      evidence: Traversed <:< (String, NBTTag)
+  ) =
     NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
 
   class GetValue[Repr](compound: NBTCompound) {
-    def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+    def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
       compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.fromNbt))
-    }
   }
 
   class getRecursiveValue[Repr](nbt: NBTCompound) {
@@ -349,7 +350,7 @@ object NBTCompound {
       else
         nbt.get(keys.head) match {
           case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr](tail: _*)
-          case _ => None
+          case _                           => None
         }
     }
   }
