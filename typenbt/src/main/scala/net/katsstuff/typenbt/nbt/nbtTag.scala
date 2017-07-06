@@ -221,11 +221,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* Gets a value from this if it exists at the specified key,
 		* and it can be converted to the specified value.
 		*/
-  def getValue[Repr] = new {
-    def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
-      get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.unapply))
-    }
-  }
+  def getValue[Repr] = new NBTCompound.GetValue[Repr](this)
 
   /**
 		* Tries to get an [[java.util.UUID]] created with [[setUUID]].
@@ -339,6 +335,12 @@ object NBTCompound {
       toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
       evidence: Traversed <:< (String, NBTTag)) =
     NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
+
+  class GetValue[Repr](compound: NBTCompound) {
+    def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+      compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.unapply))
+    }
+  }
 
   class getRecursiveValue[Repr](nbt: NBTCompound) {
     def apply[NBT <: NBTTag](keys: String*)(implicit from: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {

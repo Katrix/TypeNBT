@@ -30,7 +30,7 @@ sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends NBTView[Repr, NBT] {
 
 object NBTType {
 
-  type Obj[Repr]                             = NBTType[Repr, NBTTag.Aux[Repr]]
+  type Obj[Repr] = NBTType[Repr, NBTTag.Aux[Repr]]
 
   sealed class InferTypeFromRepr[Repr] {
     def infer[NBT <: NBTTag.Aux[Repr]](implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = extract

@@ -36,10 +36,10 @@ trait NBTView[Repr, NBT <: NBTTag] {
 object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
   sealed class InferViewFromRepr[Repr] {
-    def infer[NBT <: NBTTag](implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] = extract
+    def infer[NBT <: NBTTag](implicit infer: NBTView[Repr, NBT]): NBTView[Repr, NBT] = infer
   }
 
-  def apply[Repr, NBT <: NBTTag](implicit from: NBTView[Repr, NBT]): NBTView[Repr, NBT] = from
+  def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
   def forRepr[Repr] = new InferViewFromRepr[Repr]
 
   implicit class ReprOps[Repr](private val repr: Repr) extends AnyVal {
@@ -49,8 +49,9 @@ object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
   implicit class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
     def set[Repr](repr: Repr)(implicit view: NBTView[Repr, NBT]): NBT = view.apply(repr)
 
-    def modify[Repr, NewRepr, NewNBT <: NBTTag](f: Repr => NewRepr)(implicit view: NBTView[Repr, NBT], newView: NBTView[NewRepr, NewNBT]) =
-      view.modify[NewRepr, NewNBT](nbt)(f)(newView)
+    //FIXME: Need to specify Repr type in f
+    def modify[Repr, NewRepr, NewNBT <: NBTTag](f: Repr => NewRepr)(implicit view: NBTView[Repr, NBT], newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
+      view.modify(nbt)(f)(newView)
   }
 }
 
