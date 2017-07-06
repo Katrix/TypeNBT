@@ -162,7 +162,7 @@ object InOutNBT {
   private def readCompound(stream: DataInputStream, compound: NBTCompound): Try[NBTCompound] =
     //We match to be tail recursive
     readType(stream) match {
-      case Success(NBTView.TagEnd) => Success(compound)
+      case Success(nbtType) if nbtType == NBTView.TagEnd => Success(compound)
       case Success(nbtType) =>
         readString(stream) match {
           case Success(name) =>

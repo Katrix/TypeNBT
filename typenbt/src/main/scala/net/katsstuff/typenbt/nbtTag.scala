@@ -167,7 +167,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   /**
 		* Creates a new [[NBTCompound]] with the key-value pair appended.
 		*/
-  def updated(key: String, tag: NBTTag): NBTCompound = NBTCompound(value.updated(key, tag))
+  def update(key: String, tag: NBTTag): NBTCompound = NBTCompound(value.updated(key, tag))
 
   /**
 		* Associates a specific tag to a specific key.
@@ -176,7 +176,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* @param tag The tag to set.
 		* @return An [[scala.Option]] with the previous value of the used key, or None if the key was not already used.
 		*/
-  def set(key: String, tag: NBTTag): NBTCompound = updated(key, tag)
+  def set(key: String, tag: NBTTag): NBTCompound = update(key, tag)
 
   /**
 		* Creates a NBTTag from the type passed in, and adds it to the compound.

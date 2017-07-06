@@ -1,4 +1,5 @@
 import net.katsstuff.typenbt._
+import shapeless._
 
 val nbt = 5.nbt
 nbt.set(10)
@@ -12,3 +13,5 @@ byteNbt.set(true)
 
 byteNbt.modify((b: Byte) => b.toString)
 byteNbt.modify((b: Boolean) => b.toString)
+
+NBTView.forRepr[Map[String, String]].infer
