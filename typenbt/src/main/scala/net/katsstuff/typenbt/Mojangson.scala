@@ -38,8 +38,7 @@ object Mojangson {
 
   object MojangsonParser {
 
-    private case class RegexParser(regex: Regex)
-        extends fastparse.core.Parser[Unit, Char, String]()(fastparse.StringReprOps) /*ambigous implicit*/ {
+    private case class RegexParser(regex: Regex) extends fastparse.core.Parser[Unit, Char, String]()(fastparse.StringReprOps) /*ambigous implicit*/ {
       override def parseRec(cfg: ParseCtx[Char, String], index: Int): Mutable[Unit, Char, String] =
         regex.findPrefixOf(cfg.input.slice(index, 9999999)) match {
           case Some(parsed) => success(cfg.success, (), index + reprOps.length(parsed), Set.empty, cut = false)
@@ -58,9 +57,11 @@ object Mojangson {
     type IndexedTag = (Int, NBTTag)
     type AnyTag     = NBTTag.Aux[Any]
 
-    val stringLiteral: Parser[String] = P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(s => s.replace("""\"""", """"""").replace("""\\""", """\""")).opaque("String literal")
-    val floatingPoint: Parser[Double] = P(RegexParser("""[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?""".r)).!.map(_.toDouble).opaque("Floating point number")
-    val wholeNumber:   Parser[Long]   = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toLong).opaque("Whole number")
+    val stringLiteral: Parser[String] =
+      P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(s => s.replace("""\"""", """"""").replace("""\\""", """\""")).opaque("String literal")
+    val floatingPoint: Parser[Double] =
+      P(RegexParser("""[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?""".r)).!.map(_.toDouble).opaque("Floating point number")
+    val wholeNumber: Parser[Long] = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toLong).opaque("Whole number")
 
     val colon:    Parser[Unit]   = P(":")
     val comma:    Parser[Unit]   = P(",")
@@ -93,7 +94,8 @@ object Mojangson {
 
     val nbtNamedTag: Parser[(String, NBTTag)] = P(tagName ~/ colon ~/ nbtTag)
     val nbtCompound: Parser[NBTCompound]      = P(compoundStart ~/ nbtNamedTag.rep(sep = comma.~/) ~/ compoundEnd).map(xs => NBTCompound(xs.toMap))
-    val nbtIntArray: Parser[NBTIntArray]      = P(listStart ~/ wholeNumber.rep(sep = comma.~/) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
+    val nbtIntArray: Parser[NBTIntArray] =
+      P(listStart ~/ wholeNumber.rep(sep = comma.~/) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
 
     val indexedTag: Parser[(Int, NBTTag)] = P(tagIndex ~/ colon ~/ nbtTag)
     val nbtList: Parser[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~/ listEnd)
@@ -116,7 +118,8 @@ object Mojangson {
 
           NBTList[head.Repr, head.Self](withType)(nbtType)
         case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
-      }.opaque("NBT List")
+      }
+      .opaque("NBT List")
 
     val wholeNbt = P(nbtCompound ~ End)
   }

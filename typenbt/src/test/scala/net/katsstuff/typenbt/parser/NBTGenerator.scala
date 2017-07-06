@@ -30,7 +30,7 @@ trait NBTGenerator {
 
   final val Epsilon = 1E5
   val saneDouble: Gen[Double] = Gen.choose(-Epsilon, Epsilon)
-  val saneFloat: Gen[Float] = Gen.choose(-Epsilon.toFloat, Epsilon.toFloat)
+  val saneFloat:  Gen[Float]  = Gen.choose(-Epsilon.toFloat, Epsilon.toFloat)
 
   val genNbtByte:      Gen[NBTByte]      = for (v <- arbitrary[Byte]) yield NBTByte(v)
   val genNbtShort:     Gen[NBTShort]     = for (v <- arbitrary[Short]) yield NBTShort(v)

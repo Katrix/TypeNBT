@@ -102,7 +102,7 @@ object NBTType {
 
 //We allow creating new list types for type sake
 sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType[ElementRepr, ElementNBT])
-  extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
+    extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
   override def id: Byte = 11
 
   override def toNbt(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
