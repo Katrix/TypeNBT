@@ -113,7 +113,7 @@ object Mojangson {
           val head        = mapped.head
           val withType    = mapped.asInstanceOf[Seq[head.Self]]
           val nbtListType = head.nbtType
-          val nbtType     = new NBTView.NBTListType(nbtListType)
+          val nbtType     = new NBTListType(nbtListType)
 
           NBTList[head.Repr, head.Self](withType)(nbtType)
         case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements

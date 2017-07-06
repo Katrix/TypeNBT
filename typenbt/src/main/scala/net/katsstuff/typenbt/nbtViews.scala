@@ -100,6 +100,15 @@ object NBTType {
   }
 }
 
+//We allow creating new list types for type sake
+sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType[ElementRepr, ElementNBT])
+  extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
+  override def id: Byte = 11
+
+  override def toNbt(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
+    new NBTList[ElementRepr, ElementNBT](v)(this)
+}
+
 trait NBTTypeInstances extends NBTViewInstances {
 
   val TagEnd       = TAG_End
@@ -183,15 +192,6 @@ trait NBTTypeInstances extends NBTViewInstances {
     override def toNbt(v: IndexedSeq[Long]): NBTLongArray = NBTLongArray(v)
   }
 
-  //We allow creating new list types for type sake
-  sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType[ElementRepr, ElementNBT])
-    extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
-    override def id: Byte = 11
-
-    override def toNbt(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
-      new NBTList[ElementRepr, ElementNBT](v)(this)
-  }
-
   implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](implicit elementType: NBTType[ElemRepr, ElemNBT]) =
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
@@ -226,7 +226,7 @@ trait LowPriorityViewInstances {
 
   implicit def seqView[RawRepr, ElemRepr, ElemNBT <: NBTTag.Aux[RawRepr]](
       implicit view: NBTView[ElemRepr, ElemNBT],
-      listType: NBTView.NBTListType[RawRepr, ElemNBT]
+      listType: NBTListType[RawRepr, ElemNBT]
   ) = new NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] {
     override def toNbt(v: Seq[ElemRepr]): NBTList[RawRepr, ElemNBT] = NBTList[RawRepr, ElemNBT](v.map(view.toNbt))
     override def fromNbt(arg: NBTList[RawRepr, ElemNBT]): Option[Seq[ElemRepr]] = {

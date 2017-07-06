@@ -190,7 +190,7 @@ object IOTools {
 
   private def readList(stream: DataInputStream): Try[NBTTag] = {
     val ret = readType(stream).map { nbtType =>
-      val listType = new NBTView.NBTListType(nbtType.asInstanceOf[NBTType[Any, AnyTag]])
+      val listType = new NBTListType(nbtType.asInstanceOf[NBTType[Any, AnyTag]])
 
       Try(stream.readInt()).flatMap { length =>
         (0 until length).foldLeft(Try(NBTList()(listType))) {
