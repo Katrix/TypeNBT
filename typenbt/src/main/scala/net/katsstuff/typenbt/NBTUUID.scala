@@ -18,19 +18,21 @@
  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package net.katsstuff
+package net.katsstuff.typenbt
 
-import scala.language.implicitConversions
+import java.util.UUID
 
-import net.katsstuff.typenbt.NBTType.InferTypeFromRepr
-import net.katsstuff.typenbt.NBTView.InferViewFromRepr
+object NBTUUID extends NBTViewCaseLike[UUID, NBTCompound] {
+  override def fromNbt(arg: NBTCompound): Option[UUID] =
+    arg.get("Most").flatMap {
+      case NBTLong(mostSign) =>
+        arg.get("Least").flatMap {
+          case NBTLong(leastSign) => Some(new UUID(mostSign, leastSign))
+          case _                  => None
+        }
+      case _ => None
+    }
 
-package object typenbt {
-
-  implicit def applyViewInfer[Repr, NBT <: NBTTag](infer: InferViewFromRepr[Repr])(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] = infer.infer[NBT]
-  implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = infer.infer[NBT]
-
-  implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr] = NBTView.ReprOps(repr)
-  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT] = NBTView.NBTOps(nbt)
-
+  override def toNbt(v: UUID): NBTCompound =
+    NBTCompound(Map("Most" -> NBTLong(v.getMostSignificantBits), "Least" -> NBTLong(v.getLeastSignificantBits)))
 }
