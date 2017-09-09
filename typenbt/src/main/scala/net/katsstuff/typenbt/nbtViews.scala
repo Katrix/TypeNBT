@@ -24,15 +24,48 @@ import scala.language.higherKinds
 
 import shapeless.Typeable
 
+/**
+  * A NBTView is a sort of Prism allowing you to see and modify NBT easier.
+  * @tparam Repr The type it represents
+  * @tparam NBT The corresponding nbt type
+  */
 trait NBTView[Repr, NBT <: NBTTag] {
-  def toNbt(v: Repr):    NBT
+
+  /**
+    * Convert to NBT
+    */
+  def toNbt(v: Repr): NBT
+
+  /**
+    * Convert from NBT
+    */
   def fromNbt(arg: NBT): Option[Repr]
 
+  /**
+    * Modifies a nbt in value form before returning a new NBT.
+    * Thew two types if NBT does not have to be the same.
+    *
+    * Example:
+    * {{{
+    *   val stringNbt: Option[NBTString] = NBTView.TagInt.modify(NBTInt(5))(_.toString)
+    * }}}
+    *
+    * @param nbt The NBT to modify
+    * @param f The function to apply to the NBT
+    * @param newView A view providing a way to get back to the world
+    *                of NBT after the modification.
+    * @tparam NewRepr The new value type
+    * @tparam NewNBT The new NBT type
+    */
   def modify[NewRepr, NewNBT <: NBTTag](
       nbt: NBT
   )(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
-    this.fromNbt(nbt).map(a => newView.toNbt(f(a)))
+    fromNbt(nbt).map(a => newView.toNbt(f(a)))
+
+  def extend[NewRepr](f: Repr => Option[NewRepr], fInverse: NewRepr => Repr): NBTView[NewRepr, NBT] =
+    new ExtendedNBTView(this, f, fInverse)
 }
+
 object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
   sealed class InferViewFromRepr[Repr] {
@@ -56,18 +89,79 @@ object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
       view.modify(nbt)(f)(newView)
   }
 }
+
+/**
+  * A view that provides extra methods allowing it to make a normal type look
+  * like it has an nbt type.
+  *
+  * Example:
+  * {{{
+  *   NBTBoolean(false)
+  * }}}
+  *
+  * @tparam Repr The type it represents
+  * @tparam NBT The corresponding nbt type
+  */
 trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
   def apply(v: Repr):    NBT          = toNbt(v)
   def unapply(arg: NBT): Option[Repr] = fromNbt(arg)
+  override def extend[NewRepr](f: Repr => Option[NewRepr], fInverse: NewRepr => Repr): NBTViewCaseLike[NewRepr, NBT] =
+    new ExtendedNBTView(this, f, fInverse) with NBTViewCaseLike[NewRepr, NBT]
 }
 
 /**
-  * A specific type of [[NBTTag]]. Contains constructor and deconstructer, in addition to the numerical id.
+  * A safer type of NBTView where [[NBTView.fromNbt]] can't fail.
+  * @tparam Repr The type it represents
+  * @tparam NBT The corresponding nbt type
   */
-sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends NBTView[Repr, NBT] {
+trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
+
+  /**
+    * A safer version if [[NBTView.fromNbt]] that can't fail.
+    */
+  def fromNbtSafe(arg: NBT): Repr
+
+  override def fromNbt(arg: NBT): Option[Repr] = Some(fromNbtSafe(arg))
+
+  /**
+    * Same as [[NBTView.modify]] except it uses [[SafeNBTView.fromNbtSafe]]
+    * so the result isn't an option.
+    */
+  def safeModify[NewRepr, NewNBT <: NBTTag](
+      nbt: NBT
+  )(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): NewNBT =
+    newView.toNbt(f(fromNbtSafe(nbt)))
+
+  def safeExtend[NewRepr](f: Repr => NewRepr, fInverse: NewRepr => Repr): SafeNBTView[NewRepr, NBT] =
+    new SafeExtendedNBTView(this, f, fInverse)
+}
+
+class ExtendedNBTView[NewRepr, Repr, NBT <: NBTTag](
+    underlying: NBTView[Repr, NBT],
+    f: Repr => Option[NewRepr],
+    fInverse: NewRepr => Repr
+) extends NBTView[NewRepr, NBT] {
+
+  override def toNbt(v: NewRepr): NBT             = underlying.toNbt(fInverse(v))
+  override def fromNbt(arg: NBT): Option[NewRepr] = underlying.fromNbt(arg).flatMap(f)
+}
+
+class SafeExtendedNBTView[NewRepr, Repr, NBT <: NBTTag](
+    underlying: SafeNBTView[Repr, NBT],
+    f: Repr => NewRepr,
+    fInverse: NewRepr => Repr
+) extends SafeNBTView[NewRepr, NBT] {
+  override def fromNbtSafe(arg: NBT): NewRepr = f(underlying.fromNbtSafe(arg))
+  override def toNbt(v: NewRepr):     NBT     = underlying.toNbt(fInverse(v))
+}
+
+/**
+  * A special type of [[NBTView]] that represents a real nbt type.
+  * It's also both safe and contains the numerical id of the type.
+  */
+sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends SafeNBTView[Repr, NBT] {
   def id: Byte
-  override def fromNbt(arg: NBT): Option[Repr] = Some(arg.value)
-  def fromNbtNoOption(arg: NBT):  Repr         = arg.value
+  override def fromNbtSafe(arg: NBT): Repr = arg.value
 }
 
 object NBTType {
@@ -114,19 +208,19 @@ sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 
 trait NBTTypeInstances extends NBTViewInstances {
 
-  val TagEnd       = TAG_End
-  val TagByte      = TAG_Byte
-  val TagShort     = TAG_Short
-  val TagInt       = TAG_Int
-  val TagLong      = TAG_Long
-  val TagFloat     = TAG_Float
-  val TagDouble    = TAG_Double
-  val TagByteArray = TAG_Byte_Array
-  val TagString    = TAG_String
-  val TagCompound  = TAG_Compound
-  val TagIntArray  = TAG_Int_Array
-  val TagLongArray = TAG_Long_Array
-  val TagList      = TAG_List
+  val TagEnd:       TAG_End.type        = TAG_End
+  val TagByte:      TAG_Byte.type       = TAG_Byte
+  val TagShort:     TAG_Short.type      = TAG_Short
+  val TagInt:       TAG_Int.type        = TAG_Int
+  val TagLong:      TAG_Long.type       = TAG_Long
+  val TagFloat:     TAG_Float.type      = TAG_Float
+  val TagDouble:    TAG_Double.type     = TAG_Double
+  val TagByteArray: TAG_Byte_Array.type = TAG_Byte_Array
+  val TagString:    TAG_String.type     = TAG_String
+  val TagCompound:  TAG_Compound.type   = TAG_Compound
+  val TagIntArray:  TAG_Int_Array.type  = TAG_Int_Array
+  val TagLongArray: TAG_Long_Array.type = TAG_Long_Array
+  val TagList:      TAG_List.type       = TAG_List
 
   case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
     override def id:            Byte            = throw new IllegalStateException("Tried to get ID for any tag")
@@ -195,7 +289,9 @@ trait NBTTypeInstances extends NBTViewInstances {
     override def toNbt(v: IndexedSeq[Long]): NBTLongArray = NBTLongArray(v)
   }
 
-  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](implicit elementType: NBTType[ElemRepr, ElemNBT]) =
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](
+      implicit elementType: NBTType[ElemRepr, ElemNBT]
+  ): NBTListType[ElemRepr, ElemNBT] =
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
   //A raw list with no checks. If used wrong, this WILL cause problems
@@ -204,13 +300,13 @@ trait NBTTypeInstances extends NBTViewInstances {
 
 trait NBTViewInstances extends LowPriorityViewInstances {
 
-  implicit val BooleanView = NBTBoolean
-  implicit val UUIDView    = NBTUUID
+  implicit val BooleanView: NBTBoolean.type = NBTBoolean
+  implicit val UUIDView:    NBTUUID.type    = NBTUUID
 
   implicit def mapView[ElemRepr, ElemNBT <: NBTTag](
       implicit view: NBTView[ElemRepr, ElemNBT],
       typeable: Typeable[ElemNBT]
-  ) =
+  ): NBTView[Map[String, ElemRepr], NBTCompound] =
     new NBTView[Map[String, ElemRepr], NBTCompound] {
       override def toNbt(v: Map[String, ElemRepr]): NBTCompound = {
         val mapped = v.mapValues(view.toNbt)
@@ -233,7 +329,7 @@ trait LowPriorityViewInstances {
   implicit def seqView[RawRepr, ElemRepr, ElemNBT <: NBTTag.Aux[RawRepr]](
       implicit view: NBTView[ElemRepr, ElemNBT],
       listType: NBTListType[RawRepr, ElemNBT]
-  ) = new NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] {
+  ): NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] = new NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] {
     override def toNbt(v: Seq[ElemRepr]): NBTList[RawRepr, ElemNBT] = NBTList[RawRepr, ElemNBT](v.map(view.toNbt))
     override def fromNbt(arg: NBTList[RawRepr, ElemNBT]): Option[Seq[ElemRepr]] = {
       val mapped = arg.value.map(view.fromNbt)
