@@ -20,7 +20,7 @@
  */
 package net.katsstuff.typenbt
 
-import java.io.{BufferedInputStream, BufferedOutputStream, DataInputStream, DataOutputStream, IOException, InputStream, OutputStream}
+import java.io._
 import java.nio.charset.StandardCharsets
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
@@ -44,15 +44,15 @@ object InOutNBT {
       if (gzip) new BufferedOutputStream(new GZIPOutputStream(stream))
       else stream
     )
-    try {
-      for {
-        _   <- writeType(newStream, compound.nbtType)
-        _   <- writeString(newStream, rootName)
-        res <- writeCompound(newStream, compound)
-      } yield res
-    } finally {
-      newStream.close()
-    }
+
+    val ret = for {
+      _   <- writeType(newStream, compound.nbtType)
+      _   <- writeString(newStream, rootName)
+      res <- writeCompound(newStream, compound)
+    } yield res
+
+    newStream.close()
+    ret
   }
 
   /**
@@ -67,19 +67,18 @@ object InOutNBT {
       if (gzip) new BufferedInputStream(new GZIPInputStream(stream))
       else stream
     )
-    try {
-      readType(newStream) match {
-        case Success(nbtType) if nbtType == NBTView.TagCompound =>
-          for {
-            name <- readString(newStream)
-            tag  <- readCompound(newStream, NBTCompound())
-          } yield (name, tag)
-        case Success(_)                     => Failure(throw new IOException("Wrong starting type for NBT"))
-        case f: Failure[Nothing @unchecked] => f
-      }
-    } finally {
-      newStream.close()
+
+    val ret = readType(newStream).flatMap {
+      case NBTView.TagCompound =>
+        for {
+          name <- readString(newStream)
+          tag  <- readCompound(newStream, NBTCompound())
+        } yield (name, tag)
+      case _ => Failure(new IOException("Wrong starting type for NBT"))
     }
+
+    newStream.close()
+    ret
   }
 
   private def writeEndTag(stream: DataOutputStream): Try[Unit] = Try(stream.writeByte(0))
@@ -92,10 +91,10 @@ object InOutNBT {
       else {
         val (name, tag) = remaining.head
         val next = for {
-          _   <- writeType(stream, tag.nbtType)
-          _   <- writeString(stream, name)
-          res <- writeTag(stream, tag)
-        } yield res
+          _ <- writeType(stream, tag.nbtType)
+          _ <- writeString(stream, name)
+          _ <- writeTag(stream, tag)
+        } yield ()
 
         inner(remaining.tail, next)
       }
@@ -105,15 +104,15 @@ object InOutNBT {
 
   private def writeString(stream: DataOutputStream, string: String): Try[Unit] =
     for {
-      _   <- Try(stream.writeShort(string.length))
-      res <- Try(stream.write(string.getBytes(UTF8)))
-    } yield res
+      _ <- Try(stream.writeShort(string.length))
+      _ <- Try(stream.write(string.getBytes(UTF8)))
+    } yield ()
 
   private def writeList(stream: DataOutputStream, list: NBTList[_, _ <: NBTTag]): Try[Unit] = {
     val ret = for {
-      _   <- writeType(stream, list.nbtType.elementType)
-      res <- Try(stream.writeInt(list.value.size))
-    } yield res
+      _ <- writeType(stream, list.nbtType.elementType)
+      _ <- Try(stream.writeInt(list.value.size))
+    } yield ()
 
     list.value.foldLeft(ret) {
       case (Success(_), tag)   => writeTag(stream, tag)
@@ -123,9 +122,9 @@ object InOutNBT {
 
   private def writeByteArray(stream: DataOutputStream, array: Array[Byte]): Try[Unit] =
     for {
-      _   <- Try(stream.writeInt(array.length))
-      res <- Try(stream.write(array))
-    } yield res
+      _ <- Try(stream.writeInt(array.length))
+      _ <- Try(stream.write(array))
+    } yield ()
 
   private def writeIntArray(stream: DataOutputStream, array: Array[Int]): Try[Unit] =
     array.foldLeft(Try(stream.writeInt(array.length))) {
@@ -160,7 +159,7 @@ object InOutNBT {
     }
 
   @tailrec
-  private def readCompound(stream: DataInputStream, compound: NBTCompound): Try[NBTCompound] =
+  private def readCompound(stream: DataInputStream, compound: NBTCompound): Try[NBTCompound] = {
     //We match to be tail recursive
     readType(stream) match {
       case Success(nbtType) if nbtType == NBTView.TagEnd => Success(compound)
@@ -175,6 +174,7 @@ object InOutNBT {
         }
       case f: Failure[Nothing @unchecked] => f
     }
+  }
 
   private def readString(stream: DataInputStream): Try[String] =
     for {
@@ -245,6 +245,6 @@ object InOutNBT {
       case NBTView.TagCompound  => readCompound(stream, NBTCompound())
       case NBTView.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a))
       case NBTView.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a))
-      case NBTView.TagEnd       => throw new IOException("Unexpected end tag")
+      case NBTView.TagEnd       => Failure(new IOException("Unexpected end tag"))
     }
 }
