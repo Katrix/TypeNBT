@@ -28,7 +28,9 @@ trait NBTView[Repr, NBT <: NBTTag] {
   def toNbt(v: Repr):    NBT
   def fromNbt(arg: NBT): Option[Repr]
 
-  def modify[NewRepr, NewNBT <: NBTTag](nbt: NBT)(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
+  def modify[NewRepr, NewNBT <: NBTTag](
+      nbt: NBT
+  )(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
     this.fromNbt(nbt).map(a => newView.toNbt(f(a)))
 }
 object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
@@ -101,8 +103,9 @@ object NBTType {
 }
 
 //We allow creating new list types for type sake
-sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](val elementType: NBTType[ElementRepr, ElementNBT])
-    extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
+sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
+    val elementType: NBTType[ElementRepr, ElementNBT]
+) extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
   override def id: Byte = 11
 
   override def toNbt(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
@@ -204,7 +207,10 @@ trait NBTViewInstances extends LowPriorityViewInstances {
   implicit val BooleanView = NBTBoolean
   implicit val UUIDView    = NBTUUID
 
-  implicit def mapView[ElemRepr, ElemNBT <: NBTTag](implicit view: NBTView[ElemRepr, ElemNBT], typeable: Typeable[ElemNBT]) =
+  implicit def mapView[ElemRepr, ElemNBT <: NBTTag](
+      implicit view: NBTView[ElemRepr, ElemNBT],
+      typeable: Typeable[ElemNBT]
+  ) =
     new NBTView[Map[String, ElemRepr], NBTCompound] {
       override def toNbt(v: Map[String, ElemRepr]): NBTCompound = {
         val mapped = v.mapValues(view.toNbt)

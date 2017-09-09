@@ -52,7 +52,9 @@ trait NBTGenerator {
   implicit val arbitraryNbtString:    Arbitrary[NBTString]    = Arbitrary(genNbtString)
   implicit val arbitraryNbtIntArray:  Arbitrary[NBTIntArray]  = Arbitrary(genNbtIntArray)
 
-  def genNbtList[Repr, NBT <: NBTTag.Aux[Repr]: Arbitrary](implicit nbtType: NBTListType[Repr, NBT]): Gen[NBTList[Repr, NBT]] =
+  def genNbtList[Repr, NBT <: NBTTag.Aux[Repr]: Arbitrary](
+      implicit nbtType: NBTListType[Repr, NBT]
+  ): Gen[NBTList[Repr, NBT]] =
     for {
       l <- oneOf(Gen.const(NBTList()), nonEmptyNbtList[Repr, NBT](NBTList()))
     } yield l

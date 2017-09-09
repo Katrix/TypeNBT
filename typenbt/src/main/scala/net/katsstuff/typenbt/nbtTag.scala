@@ -267,7 +267,9 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* If a situation where both compounds contain some value with the same key arises,
 		* the merge function is used.
 		*/
-  def mergeAdvanced(other: NBTCompound)(merge: ((String, NBTTag), (String, NBTTag)) => (String, NBTTag)): NBTCompound = {
+  def mergeAdvanced(
+      other: NBTCompound
+  )(merge: ((String, NBTTag), (String, NBTTag)) => (String, NBTTag)): NBTCompound = {
     val conflictKeys = value.keySet.intersect(other.value.keySet)
 
     def mergePot(first: NBTTag, second: NBTTag): Option[NBTTag] =
@@ -281,7 +283,10 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
         case _ => None
       }
 
-    def handleConflict(conflicted: (String, NBTTag), others: Seq[(String, NBTTag)]): ((String, NBTTag), Seq[(String, NBTTag)]) = {
+    def handleConflict(
+        conflicted: (String, NBTTag),
+        others: Seq[(String, NBTTag)]
+    ): ((String, NBTTag), Seq[(String, NBTTag)]) = {
       val otherKV        = others.find(kv => kv._1 == conflicted._1).get //Get is completely safe here as we already know that both sequences contains the value
       val filteredOthers = others.filter(kv => kv != otherKV)
 
@@ -292,7 +297,11 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
     }
 
     @tailrec
-    def inner(thisRest: Seq[(String, NBTTag)], thatRest: Seq[(String, NBTTag)], acc: Map[String, NBTTag]): Map[String, NBTTag] =
+    def inner(
+        thisRest: Seq[(String, NBTTag)],
+        thatRest: Seq[(String, NBTTag)],
+        acc: Map[String, NBTTag]
+    ): Map[String, NBTTag] =
       if (thisRest.isEmpty) acc ++ thatRest
       else if (thatRest.isEmpty) acc ++ thisRest
       else {

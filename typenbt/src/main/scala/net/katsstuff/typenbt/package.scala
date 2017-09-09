@@ -27,7 +27,9 @@ import net.katsstuff.typenbt.NBTView.InferViewFromRepr
 
 package object typenbt {
 
-  implicit def applyViewInfer[Repr, NBT <: NBTTag](infer: InferViewFromRepr[Repr])(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] =
+  implicit def applyViewInfer[Repr, NBT <: NBTTag](
+      infer: InferViewFromRepr[Repr]
+  )(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] =
     infer.infer[NBT]
   implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(
       implicit extract: NBTType[Repr, NBT]
