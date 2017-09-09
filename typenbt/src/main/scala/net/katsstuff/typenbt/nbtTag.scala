@@ -50,6 +50,10 @@ object NBTTag {
   type Aux[Repr0] = NBTTag { type Repr = Repr0 }
 }
 
+/**
+  * The NBTEnd type. There are no actual values of this floating around.
+  * Think of it in the same way you think about Nothing.
+  */
 sealed trait NBTEnd extends NBTTag {
   override type Repr = Nothing
   override type Self = NBTEnd
@@ -97,7 +101,7 @@ final case class NBTString(value: String) extends NBTTag {
 }
 
 final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
-    value: Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq()
+    value: Seq[ElementNBT] with Seq[NBTTag.Aux[ElementRepr]] = Seq() //The with here is used to help the compiler infer the correct type
 )(implicit val nbtType: NBTListType[ElementRepr, ElementNBT])
     extends NBTTag {
 
@@ -108,6 +112,11 @@ final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 		* Gets the [[NBTTag]] at the specified index.
 		*/
   def apply(i: Int): ElementNBT = value(i)
+
+  /**
+    * Set the specified element at the specified position
+    */
+  def updated(i: Int, value: ElementNBT): NBTList[ElementRepr, ElementNBT] = NBTList(this.value.updated(i, value))
 
   /**
 		* Creates a new NBTList with this element prepended
@@ -141,6 +150,8 @@ final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 }
 
 final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag {
+  import NBTCompound.NamedTag
+
   override type Repr = Map[String, NBTTag]
   override type Self = NBTCompound
   override def nbtType: NBTType[Repr, Self] = NBTView.TagCompound
@@ -153,15 +164,16 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   /**
 		* Creates a new [[NBTCompound]] with the pair appended.
 		*/
-  def +(tuple: (String, NBTTag)): NBTCompound = NBTCompound(value + tuple)
+  def +(tuple: NamedTag): NBTCompound = NBTCompound(value + tuple)
 
   /**
-    * Creates a new [[NBTCompound]] with the hlist appended. If there exists duplicate values. it uses the second one
+    * Creates a new [[NBTCompound]] with the hlist appended.
+    * If there exists duplicate values it uses the second one.
     */
   def ++[Input <: HList, Mapped <: HList, Traversed](hList: Input)(
       implicit mapper: Mapper.Aux[NBTCompound.tupleToNBT.type, Input, Mapped],
       toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-      evidence: Traversed <:< (String, NBTTag)
+      evidence: Traversed <:< NamedTag
   ): NBTCompound = this.merge(NBTCompound.fromHList(hList))
 
   /**
@@ -174,7 +186,6 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @param key The key to bind to.
 		* @param tag The tag to set.
-		* @return An [[scala.Option]] with the previous value of the used key, or None if the key was not already used.
 		*/
   def set(key: String, tag: NBTTag): NBTCompound = update(key, tag)
 
@@ -196,10 +207,8 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* This method differs in behavior from [[NBTViewInstances.UUIDView]].
 		* If you want compatibility with vanilla, use this.
 		*
-		* The key of the two tags are key + "Most" for the most significant bits,
+		* The keys of the two tags are key + "Most" for the most significant bits,
 		* and key + "Least" for the least significant bits.
-		*
-		* @return The same things goes for this as for [[set]], only here you have a [[scala.collection.Seq]] instead of an [[scala.Option]]
 		*/
   def setUUID(key: String, value: UUID): NBTCompound = {
     val most  = NBTLong(value.getMostSignificantBits)
@@ -230,8 +239,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   def getUUID(key: String): Option[UUID] =
     get(s"${key}Most").collect {
       case NBTLong(most) =>
-        get(s"${key}Least")
-          .collect { case NBTLong(least) => new UUID(most, least) }
+        get(s"${key}Least").collect { case NBTLong(least) => new UUID(most, least) }
     }.flatten
 
   /**
@@ -241,67 +249,53 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* {{{
 		* val compound = NBTCompound().set("first" NBTCompound().set("second", NBTString("hi")))
-		* assert(compound.getRecursive("first", "second") == NBTString("hi"))
+		* assert(compound.getNested("first", "second") == NBTString("hi"))
 		* }}}
 		*/
   @tailrec
-  def getRecursive(keys: String*): Option[NBTTag] = {
+  def getNested(keys: String*): Option[NBTTag] = {
     val tail = keys.tail
     if (tail == Nil) get(keys.head)
     else
       get(keys.head) match {
-        case Some(compound: NBTCompound) => compound.getRecursive(tail: _*)
+        case Some(compound: NBTCompound) => compound.getNested(tail: _*)
         case _                           => None
       }
   }
 
   /**
-		* Same as [[getRecursive]], but with a value instead of a [[NBTTag]].
+		* Same as [[getNested]], but with a value instead of a [[NBTTag]].
 		*
-		* @see [[getRecursive]]
+		* @see [[getNested]]
 		*/
-  def getRecursiveValue[Repr] = new NBTCompound.getRecursiveValue[Repr](this)
+  def getNestedValue[Repr] = new NBTCompound.getRecursiveValue[Repr](this)
 
   /**
 		* Tries to merge this [[NBTCompound]] with another.
 		* If a situation where both compounds contain some value with the same key arises,
 		* the merge function is used.
 		*/
-  def mergeAdvanced(
-      other: NBTCompound
-  )(merge: ((String, NBTTag), (String, NBTTag)) => (String, NBTTag)): NBTCompound = {
+  def mergeAdvanced(other: NBTCompound)(merge: (NamedTag, NamedTag) => NamedTag): NBTCompound = {
     val conflictKeys = value.keySet.intersect(other.value.keySet)
 
-    def mergePot(first: NBTTag, second: NBTTag): Option[NBTTag] =
-      first match {
-        case thisCompound: NBTCompound =>
-          second match {
-            case thatCompound: NBTCompound =>
-              Some(thisCompound.mergeAdvanced(thatCompound)(merge))
-            case _ => None
+    def handleConflict(firstKV: NamedTag, rest: Seq[NamedTag]): (NamedTag, Seq[NamedTag]) = {
+      val otherKV = rest.find(kv => kv._1 == firstKV._1).get //Get is completely safe here as we already know that both sequences contains the value
+      val newRest = rest.filter(kv => kv != otherKV)
+
+      firstKV._2 match {
+        case firstCompound: NBTCompound =>
+          otherKV._2 match {
+            case secondCompound: NBTCompound =>
+              ((otherKV._1, firstCompound.mergeAdvanced(secondCompound)(merge)), newRest)
+            case _ => (merge(firstKV, otherKV), newRest)
           }
-        case _ => None
-      }
 
-    def handleConflict(
-        conflicted: (String, NBTTag),
-        others: Seq[(String, NBTTag)]
-    ): ((String, NBTTag), Seq[(String, NBTTag)]) = {
-      val otherKV        = others.find(kv => kv._1 == conflicted._1).get //Get is completely safe here as we already know that both sequences contains the value
-      val filteredOthers = others.filter(kv => kv != otherKV)
-
-      mergePot(conflicted._2, otherKV._2) match {
-        case Some(merged) => ((otherKV._1, merged), filteredOthers)
-        case None         => (merge(conflicted, otherKV), filteredOthers)
+        case _ => (merge(firstKV, otherKV), newRest)
       }
     }
 
     @tailrec
-    def inner(
-        thisRest: Seq[(String, NBTTag)],
-        thatRest: Seq[(String, NBTTag)],
-        acc: Map[String, NBTTag]
-    ): Map[String, NBTTag] =
+    def inner(thisRest: Seq[NamedTag], thatRest: Seq[NamedTag], acc: Map[String, NBTTag]): Map[String, NBTTag] =
       if (thisRest.isEmpty) acc ++ thatRest
       else if (thatRest.isEmpty) acc ++ thisRest
       else {
@@ -312,18 +306,18 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
           val (merged, newThat) = handleConflict(thisHead, thatRest)
           inner(thisRest.tail, newThat, acc + merged)
         } else if (conflictKeys.contains(thatName)) {
-          val (merged, newThis) = handleConflict(thatHead, thisRest)
-          inner(thisRest.tail, newThis, acc + merged)
+          val (merged, newThat) = handleConflict(thatHead, thisRest)
+          inner(thisRest.tail, newThat, acc + merged)
         } else inner(thisRest.tail, thatRest.tail, acc + thisHead + thatHead)
       }
 
-    NBTCompound(inner(value.toSeq, other.value.toSeq, Map()))
+    NBTCompound(inner(value.toSeq, other.value.toSeq, Map.empty))
   }
 
   /**
 		* Merges this [[NBTCompound]] with another, and if a conflict arises, uses the second one.
 		*/
-  def merge(other: NBTCompound): NBTCompound = mergeAdvanced(other)((first, second) => second)
+  def merge(other: NBTCompound): NBTCompound = mergeAdvanced(other)((_, second) => second)
 
   /**
 		* Checks if this [[NBTCompound]] has a specific key.
@@ -331,6 +325,8 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   def hasKey(key: String): Boolean = value.contains(key)
 }
 object NBTCompound {
+
+  type NamedTag = (String, NBTTag)
 
   def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit view: NBTView[Repr, NBT]): NBTCompound =
     new NBTCompound(map.mapValues(view.toNbt))
@@ -358,7 +354,7 @@ object NBTCompound {
       if (tail == Nil) nbt.getValue[Repr](keys.head)
       else
         nbt.get(keys.head) match {
-          case Some(compound: NBTCompound) => compound.getRecursiveValue[Repr](tail: _*)
+          case Some(compound: NBTCompound) => compound.getNestedValue[Repr](tail: _*)
           case _                           => None
         }
     }

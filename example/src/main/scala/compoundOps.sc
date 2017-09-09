@@ -5,8 +5,8 @@ import net.katsstuff.typenbt._
 val compound = NBTCompound(Map("Hi" -> 2.nbt, "There" -> "Nope".nbt, "Nested" -> NBTCompound(Map("InNested" -> false.nbt))))
 compound.getValue[String]("There")
 compound.setValue("Foo", 5)
-compound.getRecursive("Nested", "InNested")
-compound.getRecursiveValue[Byte]("Nested", "InNested")
+compound.getNested("Nested", "InNested")
+compound.getNestedValue[Byte]("Nested", "InNested")
 
 val withUUID = compound.setUUID("UUID", UUID.randomUUID())
 withUUID.getUUID("UUID")
