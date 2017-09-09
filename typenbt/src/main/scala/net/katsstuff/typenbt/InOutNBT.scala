@@ -69,7 +69,7 @@ object InOutNBT {
     )
 
     val ret = readType(newStream).flatMap {
-      case NBTView.TagCompound =>
+      case tpe if tpe == NBTView.TagCompound =>
         for {
           name <- readString(newStream)
           tag  <- readCompound(newStream, NBTCompound())
