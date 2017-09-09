@@ -31,10 +31,7 @@ object Mojangson {
   /**
 		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
 		*/
-  def fromMojangson(mojangson: String): Either[String, NBTTag] = MojangsonParser.wholeNbt.parse(mojangson) match {
-    case Parsed.Success(unknownNbt, _) => Right(unknownNbt)
-    case f @ Parsed.Failure(_, _, _)   => Left(f.msg)
-  }
+  def fromMojangson(mojangson: String): Parsed[NBTCompound] = MojangsonParser.wholeNbt.parse(mojangson)
 
   object MojangsonParser {
 
@@ -47,7 +44,7 @@ object Mojangson {
         }
     }
 
-    val White = WhitespaceApi.Wrapper {
+    val White: WhitespaceApi.Wrapper = WhitespaceApi.Wrapper {
       import fastparse.all._
       NoTrace(CharPred(Character.isWhitespace).rep)
     }
@@ -59,7 +56,7 @@ object Mojangson {
     type AnyTag     = NBTTag.Aux[Any]
 
     val stringLiteral: Parser[String] =
-      P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(s => s.replace("""\"""", """"""").replace("""\\""", """\"""))
+      P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(_.replace("\\\"", "\"").replace("\\\\", "\\"))
         .opaque("String literal")
     val floatingPoint: Parser[Double] =
       P(RegexParser("""[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?""".r)).!.map(_.toDouble).opaque("Floating point number")
@@ -104,27 +101,25 @@ object Mojangson {
     val nbtList: Parser[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~/ listEnd)
       .filter {
         case seq if seq.nonEmpty =>
-          val head     = seq.head._2
-          val sameId   = seq.forall(a => a._2.nbtType.id == head.nbtType.id)
-          val indicies = seq.foldLeft(0) { case (prev, (i, _)) => if (i == prev) prev + 1 else prev }
+          val head   = seq.head._2
+          val sameId = seq.forall(a => a._2.nbtType.id == head.nbtType.id)
 
-          sameId && indicies == seq.size
+          sameId && seq.map(_._1) == seq.indices
         case _ => true
       }
       .map {
         case seq if seq.nonEmpty =>
-          val mapped      = seq.map(_._2)
-          val head        = mapped.head
-          val withType    = mapped.asInstanceOf[Seq[head.Self]]
-          val nbtListType = head.nbtType
-          val nbtType     = new NBTListType(nbtListType)
+          val mapped   = seq.map(_._2)
+          val head     = mapped.head
+          val withType = mapped.asInstanceOf[Seq[head.Self]]
+          val nbtType  = new NBTListType(head.nbtType)
 
           NBTList[head.Repr, head.Self](withType)(nbtType)
         case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
       }
       .opaque("NBT List")
 
-    val wholeNbt = P(nbtCompound ~ End)
+    val wholeNbt: Parser[NBTCompound] = P(nbtCompound ~ End)
   }
 
   /**
@@ -139,40 +134,31 @@ object Mojangson {
     case NBTDouble(d)        => s"${d}d"
     case NBTByteArray(array) => s"[${array.length} bytes]"
     case NBTString(s)        => s""""$s""""
-    case NBTList(list) =>
-      val b = new StringBuilder("[")
-
-      for ((tag, index) <- list.zipWithIndex) {
-        if (index != 0) {
-          b.append(',')
-        }
-        b.append(s"$index:${toMojangson(tag)}")
-      }
-
-      b.append(']').mkString
-    case NBTCompound(tags) =>
-      val b = new StringBuilder("{")
-
-      for (((name, tag)) <- tags) {
-        if (b.length != 1) {
-          b.append(',')
-        }
-        b.append(s"$name:${toMojangson(tag)}")
-      }
-
-      b.append('}').mkString
-    case NBTIntArray(array) =>
-      val b = new StringBuilder("[")
-
-      for (i <- array) {
-        if (b.length != 1) {
-          b.append(',')
-        }
-        b.append(s"$i")
-      }
-
-      b.append(']').mkString
+    case NBTList(list)       => toMojangsonList(list)
+    case NBTCompound(tags)   => toMojangsonCompound(tags)
+    case NBTIntArray(ints)   => toMojangsonIntArray(ints)
   }
+
+  private def toMojangsonIterable[A](startChar: Char, endChar: Char, xs: Iterable[A])(format: A => String) = {
+    val b = new StringBuilder(s"$startChar")
+
+    for (x <- xs) {
+      if (b.length != 1) {
+        b.append(',')
+      }
+      b.append(format(x))
+    }
+
+    b.append(endChar).mkString
+  }
+
+  private def toMojangsonList(list: Seq[NBTTag]): String = toMojangsonIterable('[', ']', list.zipWithIndex) {
+    case (tag, index) => s"$index:${toMojangson(tag)}"
+  }
+  private def toMojangsonCompound(tags: Map[String, NBTTag]): String = toMojangsonIterable('{', '}', tags) {
+    case (name, tag) => s"$name:${toMojangson(tag)}"
+  }
+  private def toMojangsonIntArray(ints: Seq[Int]): String = toMojangsonIterable('[', ']', ints)(int => s"$int")
 
   /**
 		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson with indentation
@@ -182,60 +168,50 @@ object Mojangson {
 		* @param indentChar The indent character to use
 		*/
   def toMojangsonIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	'): String = {
-    def indent(b: StringBuilder, indentLevel: Int): Unit = {
-      b.append('\n')
-      (0 to indentLevel).foreach(_ => b.append(indentChar))
-    }
-
     tag match {
-      case NBTList(list) =>
-        val b = new StringBuilder("[")
-
-        for ((tag, index) <- list.zipWithIndex) {
-          if (index != 0) {
-            b.append(',')
-          }
-          indent(b, indentLevel)
-          b.append(s"$index:${toMojangsonIndent(tag, indentLevel + 1, indentChar)}")
-        }
-
-        if (list.nonEmpty) {
-          indent(b, indentLevel - 1)
-        }
-        b.append(']').mkString
-      case NBTCompound(tags) =>
-        val b = new StringBuilder("{")
-
-        for (((name, tag)) <- tags) {
-          if (b.length != 1) {
-            b.append(',')
-          }
-
-          indent(b, indentLevel)
-          b.append(s"$name:${toMojangsonIndent(tag, indentLevel + 1, indentChar)}")
-        }
-
-        if (tags.nonEmpty) {
-          indent(b, indentLevel - 1)
-        }
-
-        b.append('}').mkString
-      case NBTIntArray(tags) =>
-        val b = new StringBuilder("[")
-
-        for (tag <- tags) {
-          if (b.size != 1) {
-            b.append(',')
-          }
-          indent(b, indentLevel)
-          b.append(s"$tag")
-        }
-
-        if (tags.nonEmpty) {
-          indent(b, indentLevel - 1)
-        }
-        b.append(']').mkString
-      case _ => toMojangson(tag)
+      case NBTList(list)     => toMojangsonIndentList(list, indentLevel, indentChar)
+      case NBTCompound(tags) => toMojangsonIndentCompound(tags, indentLevel, indentChar)
+      case NBTIntArray(tags) => toMojangsonIndentIntArray(tags, indentLevel, indentChar)
+      case _                 => toMojangson(tag)
     }
   }
+
+  def indent(b: StringBuilder, indentLevel: Int, indentChar: Char): Unit = {
+    b.append('\n')
+    (0 to indentLevel).foreach(_ => b.append(indentChar))
+  }
+
+  private def toMojangsonIndentIterable[A](
+      startChar: Char,
+      endChar: Char,
+      indentLevel: Int,
+      indentChar: Char,
+      xs: Iterable[A]
+  )(format: A => String): String = {
+    val b = new StringBuilder(s"$startChar")
+
+    for (x <- xs) {
+      if (b.length != 1) {
+        b.append(',')
+      }
+      indent(b, indentLevel, indentChar)
+      b.append(format(x))
+    }
+
+    if (xs.nonEmpty) {
+      indent(b, indentLevel - 1, indentChar)
+    }
+    b.append(endChar).mkString
+  }
+
+  private def toMojangsonIndentList(list: Seq[NBTTag], indentLevel: Int, indentChar: Char): String =
+    toMojangsonIndentIterable('[', ']', indentLevel, indentChar, list.zipWithIndex) {
+      case (tag, index) => s"$index:${toMojangsonIndent(tag, indentLevel, indentChar)}"
+    }
+  private def toMojangsonIndentCompound(tags: Map[String, NBTTag], indentLevel: Int, indentChar: Char): String =
+    toMojangsonIndentIterable('{', '}', indentLevel, indentChar, tags) {
+      case (name, tag) => s"$name:${toMojangsonIndent(tag, indentLevel, indentChar)}"
+    }
+  private def toMojangsonIndentIntArray(ints: Seq[Int], indentLevel: Int, indentChar: Char): String =
+    toMojangsonIndentIterable('[', ']', indentLevel, indentChar, ints)(int => s"$int")
 }
