@@ -1,7 +1,7 @@
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.0",
-  libraryDependencies += "com.lihaoyi" %%% "fastparse" % "0.4.2",
-  libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.2"
+  scalaVersion := "2.12.4",
+  libraryDependencies += "com.lihaoyi" %%% "fastparse" % "1.0.0",
+  libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.3"
 )
 
 lazy val rootTypeNBT = project
@@ -12,7 +12,7 @@ lazy val rootTypeNBT = project
     publish := {},
     publishLocal := {},
     publishArtifact := false,
-    crossScalaVersions := Seq("2.11.8", "2.12.0")
+    crossScalaVersions := Seq("2.11.11", "2.12.4")
   )
 
 lazy val typenbt = crossProject
@@ -21,9 +21,9 @@ lazy val typenbt = crossProject
   .settings(
     name := "TypeNBT",
     organization := "net.katsstuff",
-    version := "0.2",
-    libraryDependencies += "org.scalactic"  %%% "scalactic"  % "3.0.0"  % Test,
-    libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.0"  % Test,
+    version := "0.3",
+    libraryDependencies += "org.scalactic"  %%% "scalactic"  % "3.0.4"  % Test,
+    libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.4"  % Test,
     libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.13.4" % Test,
     publishMavenStyle := true,
     publishArtifact in Test := false,
@@ -45,15 +45,14 @@ lazy val typenbt = crossProject
       )
     ),
     homepage := Some(url("https://github.com/Katrix-/TypeNBT")),
-    pomExtra := {
-      <developers>
-			<developer>
-				<id>Katrix</id>
-				<name>Nikolai Frid</name>
-				<url>https://github.com/Katrix-</url>
-			</developer>
-		</developers>
-    }
+    developers := List(
+      Developer(
+        id = "Katrix",
+        name = "Nikolai Frid",
+        email = "katrix97@hotmail.com",
+        url = url("https://github.com/Katrix-")
+      )
+    )
   )
 
 lazy val typenbtJVM = typenbt.jvm
