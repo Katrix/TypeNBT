@@ -27,7 +27,7 @@ import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object InOutNBT {
+object IONBT {
 
   private final val UTF8 = StandardCharsets.UTF_8
 
@@ -39,7 +39,7 @@ object InOutNBT {
 		* @param rootName The name of the root of the NBT. Usually blank.
 		* @param gzip If the stream should be Gziped or not
 		*/
-  def writeTo(stream: OutputStream, compound: NBTCompound, rootName: String = "", gzip: Boolean): Try[Unit] = {
+  def write(stream: OutputStream, compound: NBTCompound, rootName: String = "", gzip: Boolean): Try[Unit] = {
     val newStream = new DataOutputStream(
       if (gzip) new BufferedOutputStream(new GZIPOutputStream(stream))
       else stream
@@ -62,7 +62,7 @@ object InOutNBT {
 		* @param gzip If the [[net.katsstuff.typenbt.NBTCompound]] to read from the stream is GZiped or not
 		* @return A tuple compromising of the [[net.katsstuff.typenbt.NBTCompound]] read, as well as the root name
 		*/
-  def readFrom(stream: InputStream, gzip: Boolean): Try[(String, NBTCompound)] = {
+  def read(stream: InputStream, gzip: Boolean): Try[(String, NBTCompound)] = {
     val newStream = new DataInputStream(
       if (gzip) new BufferedInputStream(new GZIPInputStream(stream))
       else stream
@@ -226,7 +226,7 @@ object InOutNBT {
   private def readType(stream: DataInputStream): Try[NBTType[Any, _ <: AnyTag]] = Try {
     val byte = stream.readByte()
     NBTType
-      .idToType(byte)
+      .fromId(byte)
       .getOrElse(throw new IOException(s"Read type $byte on NBT is not valid"))
       .asInstanceOf[NBTType[Any, _ <: AnyTag]]
   }

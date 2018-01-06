@@ -199,7 +199,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* @tparam NBT The tag to convert to
 		*/
   def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(implicit to: NBTView[Repr, NBT]): NBTCompound =
-    set(key, to.toNbt(value))
+    set(key, to.to(value))
 
   /**
 		* Creates two [[NBTLong]] tags from the UUID and sets the tags.
@@ -329,11 +329,11 @@ object NBTCompound {
   type NamedTag = (String, NBTTag)
 
   def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit view: NBTView[Repr, NBT]): NBTCompound =
-    new NBTCompound(map.mapValues(view.toNbt))
+    new NBTCompound(map.mapValues(view.to))
 
   object tupleToNBT extends Poly1 {
     implicit def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]) =
-      at[(String, Repr)] { case (name, value) => name -> view.toNbt(value) }
+      at[(String, Repr)] { case (name, value) => name -> view.to(value) }
   }
 
   def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
@@ -345,7 +345,7 @@ object NBTCompound {
 
   class GetValue[Repr](compound: NBTCompound) {
     def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
-      compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.fromNbt))
+      compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.from))
   }
 
   class getRecursiveValue[Repr](nbt: NBTCompound) {

@@ -20,6 +20,8 @@
  */
 package net.katsstuff
 
+import java.util.UUID
+
 import scala.language.implicitConversions
 
 import net.katsstuff.typenbt.NBTType.InferTypeFromRepr
@@ -31,6 +33,7 @@ package object typenbt {
       infer: InferViewFromRepr[Repr]
   )(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] =
     infer.infer[NBT]
+
   implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(
       implicit extract: NBTType[Repr, NBT]
   ): NBTType[Repr, NBT] = infer.infer[NBT]
@@ -38,4 +41,23 @@ package object typenbt {
   implicit def reprOps[Repr](repr: Repr):       NBTView.ReprOps[Repr] = NBTView.ReprOps(repr)
   implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT]   = NBTView.NBTOps(nbt)
 
+  object NBTBoolean extends NBTViewCaseLike[Boolean, NBTByte] {
+    override def to(v: Boolean):     NBTByte         = NBTByte(if (v) 1 else 0)
+    override def from(arg: NBTByte): Option[Boolean] = Some(arg.value == 1)
+  }
+
+  object NBTUUID extends NBTViewCaseLike[UUID, NBTCompound] {
+    override def from(arg: NBTCompound): Option[UUID] =
+      arg.get("Most").flatMap {
+        case NBTLong(mostSign) =>
+          arg.get("Least").flatMap {
+            case NBTLong(leastSign) => Some(new UUID(mostSign, leastSign))
+            case _                  => None
+          }
+        case _ => None
+      }
+
+    override def to(v: UUID): NBTCompound =
+      NBTCompound(Map("Most" -> NBTLong(v.getMostSignificantBits), "Least" -> NBTLong(v.getLeastSignificantBits)))
+  }
 }

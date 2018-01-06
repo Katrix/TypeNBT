@@ -16,8 +16,8 @@ val compund = NBTCompound()
   .set("string", "test".nbt)
   .set("list", list)
 
-val toMojangson = Mojangson.toMojangson(compund)
-Mojangson.fromMojangson(toMojangson)
+val toMojangson = Mojangson.serialize(compund)
+Mojangson.deserialize(toMojangson)
 
 def errorMessage[T](p: Parser[T, Char, String], str: String) =
   ParseError(p.parse(str).asInstanceOf[Parsed.Failure[Char, String]]).getMessage

@@ -31,7 +31,7 @@ object Mojangson {
   /**
 		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
 		*/
-  def fromMojangson(mojangson: String): Parsed[NBTCompound] = MojangsonParser.wholeNbt.parse(mojangson)
+  def deserialize(mojangson: String): Parsed[NBTCompound] = MojangsonParser.wholeNbt.parse(mojangson)
 
   object MojangsonParser {
 
@@ -125,7 +125,7 @@ object Mojangson {
   /**
 		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson.
 		*/
-  def toMojangson(tag: NBTTag): String = tag match {
+  def serialize(tag: NBTTag): String = tag match {
     case NBTByte(b)          => s"${b}b"
     case NBTShort(s)         => s"${s}s"
     case NBTInt(i)           => s"$i"
@@ -153,10 +153,10 @@ object Mojangson {
   }
 
   private def toMojangsonList(list: Seq[NBTTag]): String = toMojangsonIterable('[', ']', list.zipWithIndex) {
-    case (tag, index) => s"$index:${toMojangson(tag)}"
+    case (tag, index) => s"$index:${serialize(tag)}"
   }
   private def toMojangsonCompound(tags: Map[String, NBTTag]): String = toMojangsonIterable('{', '}', tags) {
-    case (name, tag) => s"$name:${toMojangson(tag)}"
+    case (name, tag) => s"$name:${serialize(tag)}"
   }
   private def toMojangsonIntArray(ints: Seq[Int]): String = toMojangsonIterable('[', ']', ints)(int => s"$int")
 
@@ -167,16 +167,16 @@ object Mojangson {
 		* @param indentLevel How many indent characters to insert per level
 		* @param indentChar The indent character to use
 		*/
-  def toMojangsonIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	'): String = {
+  def serializeIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	'): String = {
     tag match {
       case NBTList(list)     => toMojangsonIndentList(list, indentLevel, indentChar)
       case NBTCompound(tags) => toMojangsonIndentCompound(tags, indentLevel, indentChar)
       case NBTIntArray(tags) => toMojangsonIndentIntArray(tags, indentLevel, indentChar)
-      case _                 => toMojangson(tag)
+      case _                 => serialize(tag)
     }
   }
 
-  def indent(b: StringBuilder, indentLevel: Int, indentChar: Char): Unit = {
+  private def indent(b: StringBuilder, indentLevel: Int, indentChar: Char): Unit = {
     b.append('\n')
     (0 to indentLevel).foreach(_ => b.append(indentChar))
   }
@@ -206,11 +206,11 @@ object Mojangson {
 
   private def toMojangsonIndentList(list: Seq[NBTTag], indentLevel: Int, indentChar: Char): String =
     toMojangsonIndentIterable('[', ']', indentLevel, indentChar, list.zipWithIndex) {
-      case (tag, index) => s"$index:${toMojangsonIndent(tag, indentLevel, indentChar)}"
+      case (tag, index) => s"$index:${serializeIndent(tag, indentLevel, indentChar)}"
     }
   private def toMojangsonIndentCompound(tags: Map[String, NBTTag], indentLevel: Int, indentChar: Char): String =
     toMojangsonIndentIterable('{', '}', indentLevel, indentChar, tags) {
-      case (name, tag) => s"$name:${toMojangsonIndent(tag, indentLevel, indentChar)}"
+      case (name, tag) => s"$name:${serializeIndent(tag, indentLevel, indentChar)}"
     }
   private def toMojangsonIndentIntArray(ints: Seq[Int], indentLevel: Int, indentChar: Char): String =
     toMojangsonIndentIterable('[', ']', indentLevel, indentChar, ints)(int => s"$int")

@@ -200,7 +200,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
   test("nbtNamedTag should parse a tagname, followed by a colon and then a tag") {
     forAll(genNbt, Gen.alphaNumStr) { (nbtTag: NBTTag, tagName: String) =>
       whenever(tagNameValid(tagName) && validMojangsonTag(nbtTag)) {
-        val string = s"$tagName:${Mojangson.toMojangson(nbtTag)}"
+        val string = s"$tagName:${Mojangson.serialize(nbtTag)}"
         val parsed = MojangsonParser.nbtNamedTag.parse(string)
         parsed should contain((tagName, nbtTag))
       }
@@ -210,7 +210,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
   test("indexedTag should parse a tagname, followed by a colon and then a tag") {
     forAll(genNbt, Gen.posNum[Int]) { (nbtTag, tagIndex) =>
       whenever(tagIndex >= 0 && validMojangsonTag(nbtTag)) {
-        val string = s"$tagIndex:${Mojangson.toMojangson(nbtTag)}"
+        val string = s"$tagIndex:${Mojangson.serialize(nbtTag)}"
         val parsed = MojangsonParser.indexedTag.parse(string)
         parsed should contain((tagIndex, nbtTag))
       }
@@ -222,7 +222,7 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
     implicit val generatorDrivenConfig = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
     forAll { nbtTag: NBTTag =>
       whenever(validMojangsonTag(nbtTag)) {
-        val string = Mojangson.toMojangson(nbtTag)
+        val string = Mojangson.serialize(nbtTag)
         val parsed = MojangsonParser.nbtTag.parse(string)
         parsed should contain(nbtTag)
       }
