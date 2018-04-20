@@ -4,9 +4,9 @@ TypeNBT is a idiomatic, type safe NBT library for Scala. TypeNBT allows you to f
 
 Add TypeNBT to your project by including this line in build.sbt
 ```scala
-libraryDependecies += "net.katsstuff" %% "typenbt" % "0.2"
+libraryDependencies += "net.katsstuff" %% "typenbt" % "0.3"
 //Or this if you use Scala.js
-libraryDependecies += "net.katsstuff" %%% "typenbt" % "0.2"
+libraryDependencies += "net.katsstuff" %%% "typenbt" % "0.3"
 ```
 
 ## Why TypeNBT?
