@@ -39,20 +39,21 @@ lazy val typenbt = crossProject
     licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT")),
     scmInfo := Some(
       ScmInfo(
-        url("https://github.com/Katrix-/TypeNBT"),
-        "scm:git:github.com/Katrix-/TypeNBT",
-        Some("scm:git:github.com/Katrix-/TypeNBT")
+        url("https://github.com/Katrix/TypeNBT"),
+        "scm:git:github.com/Katrix/TypeNBT",
+        Some("scm:git:github.com/Katrix/TypeNBT")
       )
     ),
-    homepage := Some(url("https://github.com/Katrix-/TypeNBT")),
+    homepage := Some(url("https://github.com/Katrix/TypeNBT")),
     developers := List(
       Developer(
         id = "Katrix",
         name = "Nikolai Frid",
         email = "katrix97@hotmail.com",
-        url = url("https://github.com/Katrix-")
+        url = url("http://katsstuff.net/")
       )
-    )
+    ),
+    autoAPIMappings := true
   )
 
 lazy val typenbtJVM = typenbt.jvm
