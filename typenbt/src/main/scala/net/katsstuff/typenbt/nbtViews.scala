@@ -190,7 +190,7 @@ object NBTType {
     case 6  => Some(NBTView.TagDouble)
     case 7  => Some(NBTView.TagByteArray)
     case 8  => Some(NBTView.TagString)
-    case 9  => Some(NBTView.TagList)
+    case 9  => Some(unsafe.TagList)
     case 10 => Some(NBTView.TagCompound)
     case 11 => Some(NBTView.TagIntArray)
     case 12 => Some(NBTView.TagLongArray)
@@ -222,9 +222,8 @@ trait NBTTypeInstances extends NBTViewInstances {
   val TagCompound:  TAG_Compound.type   = TAG_Compound
   val TagIntArray:  TAG_Int_Array.type  = TAG_Int_Array
   val TagLongArray: TAG_Long_Array.type = TAG_Long_Array
-  val TagList:      TAG_List.type       = TAG_List
 
-  case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
+  private[typenbt] case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
     override def id:         Byte            = throw new IllegalStateException("Tried to get ID for any tag")
     override def to(v: Any): NBTTag.Aux[Any] = throw new IllegalStateException("Tried to construct any tag")
   }
@@ -297,7 +296,7 @@ trait NBTTypeInstances extends NBTViewInstances {
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
   //A raw list with no checks. If used wrong, this WILL cause problems
-  case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](NBTView.AnyTag)
+  private[typenbt] case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](NBTView.AnyTag)
 }
 
 trait NBTViewInstances extends LowPriorityViewInstances {

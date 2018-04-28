@@ -183,15 +183,13 @@ object IONBT {
       _ <- Try(stream.readFully(characters))
     } yield new String(characters, UTF8)
 
-  private type AnyTag = NBTTag.Aux[Any]
-
   private def readList(stream: DataInputStream): Try[NBTTag] =
     for {
       nbtType <- readType(stream)
-      listType = new NBTListType(nbtType.asInstanceOf[NBTType[Any, AnyTag]])
+      listType = new NBTListType(nbtType.asInstanceOf[unsafe.AnyTagType])
       length <- Try(stream.readInt())
       res <- (0 until length).foldLeft(Try(NBTList()(listType))) {
-        case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[AnyTag])
+        case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read.asInstanceOf[unsafe.AnyTag])
         case (f @ Failure(_), _) => f
       }
     } yield res
@@ -223,16 +221,16 @@ object IONBT {
       }
     } yield array
 
-  private def readType(stream: DataInputStream): Try[NBTType[Any, _ <: AnyTag]] = Try {
+  private def readType(stream: DataInputStream): Try[unsafe.AnyTagType] = Try {
     val byte = stream.readByte()
     NBTType
       .fromId(byte)
       .getOrElse(throw new IOException(s"Read type $byte on NBT is not valid"))
-      .asInstanceOf[NBTType[Any, _ <: AnyTag]]
+      .asInstanceOf[unsafe.AnyTagType]
   }
 
   private def readTag[Repr](stream: DataInputStream, nbtType: NBTType[Repr, _ <: NBTTag.Aux[Repr]]): Try[NBTTag] =
-    (nbtType: @unchecked) match {
+    nbtType match {
       case NBTView.TagByte      => Try(NBTByte(stream.readByte()))
       case NBTView.TagShort     => Try(NBTShort(stream.readShort()))
       case NBTView.TagInt       => Try(NBTInt(stream.readInt()))
@@ -241,10 +239,11 @@ object IONBT {
       case NBTView.TagDouble    => Try(NBTDouble(stream.readDouble()))
       case NBTView.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a))
       case NBTView.TagString    => readString(stream).map(s => NBTString(s))
-      case NBTView.TagList      => readList(stream)
+      case unsafe.TagList       => readList(stream)
       case NBTView.TagCompound  => readCompound(stream, NBTCompound())
       case NBTView.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a))
       case NBTView.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a))
       case NBTView.TagEnd       => Failure(new IOException("Unexpected end tag"))
+      case _                    => Failure(new IOException("Unexpected tag type"))
     }
 }

@@ -25,11 +25,8 @@ import scala.util.matching.Regex
 import fastparse.WhitespaceApi
 import fastparse.core.{Mutable, ParseCtx}
 import fastparse.noApi._
-import net.katsstuff.typenbt.IONBT.AnyTag
 
 object Mojangson {
-
-  private type AnyTag = NBTTag.Aux[Any]
 
   /**
 		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
@@ -56,7 +53,6 @@ object Mojangson {
 
     type NamedTag   = (String, NBTTag)
     type IndexedTag = (Int, NBTTag)
-    type AnyTag     = NBTTag.Aux[Any]
 
     val stringLiteral: Parser[String] =
       P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(_.replace("\\\"", "\"").replace("\\\\", "\\"))
@@ -114,11 +110,11 @@ object Mojangson {
         case seq if seq.nonEmpty =>
           val mapped   = seq.map(_._2)
           val head     = mapped.head
-          val nbtType  = new NBTListType(head.nbtType.asInstanceOf[NBTType[Any, AnyTag]])
-          val withType = mapped.asInstanceOf[Seq[AnyTag]]
+          val nbtType  = new NBTListType(head.nbtType.asInstanceOf[unsafe.AnyTagType])
+          val withType = mapped.asInstanceOf[Seq[unsafe.AnyTag]]
 
-          NBTList[Any, AnyTag](withType)(nbtType)
-        case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
+          NBTList[Any, unsafe.AnyTag](withType)(nbtType)
+        case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] //We use byte if there are no elements
       }
       .opaque("NBT List")
 
