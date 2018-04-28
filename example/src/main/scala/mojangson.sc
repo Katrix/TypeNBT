@@ -1,4 +1,3 @@
-import fastparse.core.Parsed.Failure
 import fastparse.core.{ParseError, Parsed, Parser}
 import net.katsstuff.typenbt._
 

@@ -20,7 +20,7 @@
  */
 package net.katsstuff.typenbt
 
-import scala.language.higherKinds
+import scala.language.{existentials, higherKinds}
 
 import shapeless._
 import shapeless.labelled.FieldType
@@ -44,17 +44,15 @@ trait NBTView[Repr, NBT <: NBTTag] {
 
   /**
     * Modifies a nbt in value form before returning a new NBT.
-    * Thew two types if NBT does not have to be the same.
+    * Thew two types of NBT does not have to be the same.
     *
-    * Example:
-    * {{{
+    * @example {{{
     *   val stringNbt: Option[NBTString] = NBTView.TagInt.modify(NBTInt(5))(_.toString)
     * }}}
-    *
     * @param nbt The NBT to modify
     * @param f The function to apply to the NBT
     * @param newView A view providing a way to get back to the world
-    *                of NBT after the modification.
+    *                of NBTs after the modification.
     * @tparam NewRepr The new value type
     * @tparam NewNBT The new NBT type
     */
@@ -69,25 +67,21 @@ trait NBTView[Repr, NBT <: NBTTag] {
 
 object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
 
-  class InferViewFromRepr[Repr](val dummy: Unit) extends AnyVal {
+  class InferViewFromRepr[Repr](private val dummy: Unit = ()) extends AnyVal {
     def infer[NBT <: NBTTag](implicit infer: NBTView[Repr, NBT]): NBTView[Repr, NBT] = infer
   }
 
   def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
-  def forRepr[Repr]                                                                     = new InferViewFromRepr[Repr](())
+  def forRepr[Repr]                                                                     = new InferViewFromRepr[Repr]
 
-  implicit class ReprOps[Repr](private val repr: Repr) extends AnyVal {
+  class ReprOps[Repr](private val repr: Repr) extends AnyVal {
     def nbt[NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBT = view.to(repr)
   }
 
-  implicit class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
+  class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
     def set[Repr](repr: Repr)(implicit view: NBTView[Repr, NBT]): NBT = view.to(repr)
-
-    //FIXME: Need to specify Repr type in f
-    def modify[Repr, NewRepr, NewNBT <: NBTTag](
-        f: Repr => NewRepr
-    )(implicit view: NBTView[Repr, NBT], newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
-      view.modify(nbt)(f)(newView)
+    def as[Repr](implicit view: NBTView[Repr, NBT]): Option[Repr]     = view.from(nbt)
+    def safeAs[Repr](implicit view: SafeNBTView[Repr, NBT]): Repr     = view.fromSafe(nbt)
   }
 }
 
@@ -168,7 +162,8 @@ sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends SafeNBTView[Repr, NB
 
 object NBTType {
 
-  type Obj[Repr] = NBTType[Repr, NBTTag.Aux[Repr]]
+  type Obj[Repr]      = NBTType[Repr, NBTTag.Aux[Repr]]
+  type CovarObj[Repr] = NBTType[Repr, _ <: NBTTag.Aux[Repr]]
 
   class InferTypeFromRepr[Repr](val dummy: Unit) extends AnyVal {
     def infer[NBT <: NBTTag.Aux[Repr]](implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = extract
@@ -180,7 +175,7 @@ object NBTType {
   /**
     * Convert a numerical id to a [[NBTType]]
     */
-  def fromId(i: Int): Option[NBTType[_, _ <: NBTTag]] = i match {
+  def fromId(i: Int): Option[NBTType.CovarObj[_]] = i match {
     case 0  => Some(NBTView.TagEnd)
     case 1  => Some(NBTView.TagByte)
     case 2  => Some(NBTView.TagShort)
@@ -307,43 +302,39 @@ trait NBTViewInstances extends LowPriorityViewInstances {
   implicit def mapView[ElemRepr, ElemNBT <: NBTTag](
       implicit view: NBTView[ElemRepr, ElemNBT],
       typeable: Typeable[ElemNBT]
-  ): NBTView[Map[String, ElemRepr], NBTCompound] =
-    new NBTView[Map[String, ElemRepr], NBTCompound] {
+  ): SafeNBTView[Map[String, ElemRepr], NBTCompound] =
+    new SafeNBTView[Map[String, ElemRepr], NBTCompound] {
       override def to(v: Map[String, ElemRepr]): NBTCompound = {
         val mapped = v.mapValues(view.to)
         NBTCompound(mapped)
       }
-      override def from(arg: NBTCompound): Option[Map[String, ElemRepr]] = {
-        val res = for {
+
+      override def fromSafe(arg: NBTCompound): Map[String, ElemRepr] =
+        for {
           (str, nbt) <- arg.value
           typed      <- typeable.cast(nbt).toSeq
           mapped     <- view.from(typed).toSeq
         } yield str -> mapped
-
-        Some(res)
-      }
     }
 }
 
 trait LowPriorityViewInstances {
 
-  implicit def seqView[RawRepr, ElemRepr, ElemNBT <: NBTTag.Aux[RawRepr]](
-      implicit view: NBTView[ElemRepr, ElemNBT],
-      listType: NBTListType[RawRepr, ElemNBT]
-  ): NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] = new NBTView[Seq[ElemRepr], NBTList[RawRepr, ElemNBT]] {
-    override def to(v: Seq[ElemRepr]): NBTList[RawRepr, ElemNBT] = NBTList[RawRepr, ElemNBT](v.map(view.to))
-    override def from(arg: NBTList[RawRepr, ElemNBT]): Option[Seq[ElemRepr]] = {
-      val mapped = arg.value.map(view.from)
-      Some(mapped.flatten)
+  implicit def seqView[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
+      implicit view: NBTView[SeqRepr, ListNBT],
+      listType: NBTListType[ListNBTRepr, ListNBT]
+  ): SafeNBTView[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
+    new SafeNBTView[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] {
+      override def to(v: Seq[SeqRepr]): NBTList[ListNBTRepr, ListNBT]         = NBTList[ListNBTRepr, ListNBT](v.map(view.to))
+      override def fromSafe(arg: NBTList[ListNBTRepr, ListNBT]): Seq[SeqRepr] = arg.value.flatMap(view.from)
     }
-  }
 }
 
 trait NBTViewCaseCreator {
 
-  implicit val hNilView: NBTView[HNil, NBTCompound] = new NBTView[HNil, NBTCompound] {
-    override def to(v: HNil): NBTCompound             = NBTCompound()
-    override def from(arg: NBTCompound): Option[HNil] = Some(HNil)
+  implicit val hNilView: SafeNBTView[HNil, NBTCompound] = new SafeNBTView[HNil, NBTCompound] {
+    override def to(v: HNil): NBTCompound         = NBTCompound()
+    override def fromSafe(arg: NBTCompound): HNil = HNil
   }
 
   implicit val cNilView: NBTView[CNil, NBTCompound] = new NBTView[CNil, NBTCompound] {

@@ -42,7 +42,23 @@ sealed trait NBTTag {
   /**
 		* The type of this [[NBTTag]]
 		*/
-  def nbtType: NBTType[Repr, _ <: NBTTag.Aux[Repr]]
+  def nbtType: NBTType.CovarObj[Repr]
+
+  /**
+    * Modifies this NBT in value form before returning a new NBT.
+    * Thew two types of NBT does not have to be the same.
+    *
+    * @example {{{
+    *   val stringNbt: NBTString = NBTInt(5).modify(_.toString)
+    * }}}
+    * @param f The function to apply to the NBT
+    * @param newView A view providing a way to get back to the world
+    *                of NBTs after the modification.
+    * @tparam NewRepr The new value type
+    * @tparam NewNBT The new NBT type
+    */
+  def modify[NewRepr, NewNBT <: NBTTag](f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): NewNBT =
+    newView.to(f(value))
 }
 
 object NBTTag {
@@ -182,12 +198,12 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @param key The key to bind to.
 		* @param value The value top set
-		* @param to The converter to convert the value to a NBTTag
+		* @param view The converter to convert the value to a NBTTag
 		* @tparam Repr The type to convert from
 		* @tparam NBT The tag to convert to
 		*/
-  def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(implicit to: NBTView[Repr, NBT]): NBTCompound =
-    set(key, to.to(value))
+  def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(implicit view: NBTView[Repr, NBT]): NBTCompound =
+    set(key, view.to(value))
 
   /**
 		* Creates two [[NBTLong]] tags from the UUID and sets the tags.
@@ -256,7 +272,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @see [[getNested]]
 		*/
-  def getNestedValue[Repr] = new NBTCompound.getRecursiveValue[Repr](this)
+  def getNestedValue[Repr] = new NBTCompound.GetRecursiveValue[Repr](this)
 
   /**
 		* Tries to merge this [[NBTCompound]] with another.
@@ -327,21 +343,20 @@ object NBTCompound {
   def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
       implicit mapper: Mapper.Aux[tupleToNBT.type, Input, Mapped],
       toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-      evidence: Traversed <:< (String, NBTTag)
-  ) =
-    NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
+      evidence: Traversed <:< NamedTag
+  ) = NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
 
-  class GetValue[Repr](compound: NBTCompound) {
+  class GetValue[Repr](private val compound: NBTCompound) extends AnyVal {
     def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
       compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.from))
   }
 
-  class getRecursiveValue[Repr](nbt: NBTCompound) {
+  class GetRecursiveValue[Repr](private val compound: NBTCompound) extends AnyVal {
     def apply[NBT <: NBTTag](keys: String*)(implicit from: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
       val tail = keys.tail
-      if (tail == Nil) nbt.getValue[Repr](keys.head)
+      if (tail == Nil) compound.getValue[Repr](keys.head)
       else
-        nbt.get(keys.head) match {
+        compound.get(keys.head) match {
           case Some(compound: NBTCompound) => compound.getNestedValue[Repr](tail: _*)
           case _                           => None
         }

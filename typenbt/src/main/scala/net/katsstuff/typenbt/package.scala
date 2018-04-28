@@ -24,22 +24,10 @@ import java.util.UUID
 
 import scala.language.implicitConversions
 
-import net.katsstuff.typenbt.NBTType.InferTypeFromRepr
-import net.katsstuff.typenbt.NBTView.InferViewFromRepr
-
 package object typenbt {
 
-  implicit def applyViewInfer[Repr, NBT <: NBTTag](
-      infer: InferViewFromRepr[Repr]
-  )(implicit extract: NBTView[Repr, NBT]): NBTView[Repr, NBT] =
-    infer.infer[NBT]
-
-  implicit def applyTypeInfer[Repr, NBT <: NBTTag.Aux[Repr]](infer: InferTypeFromRepr[Repr])(
-      implicit extract: NBTType[Repr, NBT]
-  ): NBTType[Repr, NBT] = infer.infer[NBT]
-
-  implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr]     = NBTView.ReprOps(repr)
-  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT] = NBTView.NBTOps(nbt)
+  implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr]     = new NBTView.ReprOps(repr)
+  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT] = new NBTView.NBTOps(nbt)
 
   object NBTBoolean extends NBTViewCaseLike[Boolean, NBTByte] {
     override def to(v: Boolean): NBTByte             = NBTByte(if (v) 1 else 0)

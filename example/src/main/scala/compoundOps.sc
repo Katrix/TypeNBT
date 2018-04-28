@@ -16,4 +16,4 @@ withUUID.getUUID("UUID")
 compound.merge(NBTUUID(UUID.randomUUID()))
 
 val newNBT = compound("5") = 5.nbt
-compound("5")
+newNBT("5")
