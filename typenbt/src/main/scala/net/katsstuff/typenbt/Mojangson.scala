@@ -61,28 +61,28 @@ object Mojangson {
       P(RegexParser("""[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?""".r)).!.map(_.toDouble).opaque("Floating point number")
     val wholeNumber: Parser[Long] = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toLong).opaque("Whole number")
 
-    val colon:    Parser[Unit]   = P(":")
-    val comma:    Parser[Unit]   = P(",")
-    val tagName:  Parser[String] = P(CharsWhile(c => !":{}[]".contains(c)).!).opaque("Tag name") //Better way?
-    val tagIndex: Parser[Int]    = P(CharIn('0' to '9').rep(1).!).map(_.toInt).opaque("Tag index")
+    val colon: Parser[Unit]     = P(":")
+    val comma: Parser[Unit]     = P(",")
+    val tagName: Parser[String] = P(CharsWhile(c => !":{}[]".contains(c)).!).opaque("Tag name") //Better way?
+    val tagIndex: Parser[Int]   = P(CharIn('0' to '9').rep(1).!).map(_.toInt).opaque("Tag index")
 
     val compoundStart: Parser[Unit] = P("{").opaque("Compound start")
-    val compoundEnd:   Parser[Unit] = P("}").opaque("Compound end")
-    val listStart:     Parser[Unit] = P("[").opaque("List start")
-    val listEnd:       Parser[Unit] = P("]").opaque("List end")
+    val compoundEnd: Parser[Unit]   = P("}").opaque("Compound end")
+    val listStart: Parser[Unit]     = P("[").opaque("List start")
+    val listEnd: Parser[Unit]       = P("]").opaque("List end")
 
-    val byteEnd:   Parser[Unit] = P("b").opaque("Byte end")
-    val shortEnd:  Parser[Unit] = P("s").opaque("Short end")
-    val longEnd:   Parser[Unit] = P("L").opaque("Long end")
-    val floatEnd:  Parser[Unit] = P(CharIn("fF")).opaque("Float end")
+    val byteEnd: Parser[Unit]   = P("b").opaque("Byte end")
+    val shortEnd: Parser[Unit]  = P("s").opaque("Short end")
+    val longEnd: Parser[Unit]   = P("L").opaque("Long end")
+    val floatEnd: Parser[Unit]  = P(CharIn("fF")).opaque("Float end")
     val doubleEnd: Parser[Unit] = P(CharIn("dD")).opaque("Double end")
 
-    val nbtByte:   Parser[NBTByte]   = P(wholeNumber ~ byteEnd).map(n => NBTByte(n.toByte))
-    val nbtShort:  Parser[NBTShort]  = P(wholeNumber ~ shortEnd).map(n => NBTShort(n.toShort))
-    val nbtLong:   Parser[NBTLong]   = P(wholeNumber ~ longEnd).map(n => NBTLong(n))
-    val nbtFloat:  Parser[NBTFloat]  = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
+    val nbtByte: Parser[NBTByte]     = P(wholeNumber ~ byteEnd).map(n => NBTByte(n.toByte))
+    val nbtShort: Parser[NBTShort]   = P(wholeNumber ~ shortEnd).map(n => NBTShort(n.toShort))
+    val nbtLong: Parser[NBTLong]     = P(wholeNumber ~ longEnd).map(n => NBTLong(n))
+    val nbtFloat: Parser[NBTFloat]   = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
     val nbtDouble: Parser[NBTDouble] = P(floatingPoint ~ doubleEnd).map(n => NBTDouble(n))
-    val nbtInt:    Parser[NBTInt]    = wholeNumber.map(n => NBTInt(n.toInt))
+    val nbtInt: Parser[NBTInt]       = wholeNumber.map(n => NBTInt(n.toInt))
 
     val nbtNumber: Parser[NBTTag]    = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
     val nbtString: Parser[NBTString] = stringLiteral.map(s => NBTString(s.substring(1, s.length - 1)))
@@ -114,7 +114,8 @@ object Mojangson {
           val withType = mapped.asInstanceOf[Seq[unsafe.AnyTag]]
 
           NBTList[Any, unsafe.AnyTag](withType)(nbtType)
-        case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] //We use byte if there are no elements
+        case _ =>
+          NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] //We use byte if there are no elements
       }
       .opaque("NBT List")
 

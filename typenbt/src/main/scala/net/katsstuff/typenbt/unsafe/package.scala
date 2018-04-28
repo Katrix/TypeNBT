@@ -24,7 +24,7 @@ package object unsafe {
 
   type AnyTag = NBTTag.Aux[Any]
 
-  val AnyTagType: NBTView.AnyTag.type = NBTView.AnyTag
+  val AnyTagType: NBTView.AnyTagType.type = NBTView.AnyTagType
   type AnyTagType = NBTType[Any, AnyTag]
 
   //A raw list with no checks. If used wrong, this WILL cause problems

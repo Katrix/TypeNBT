@@ -9,4 +9,3 @@ Map("Hi" -> 2, "Int" -> 5).nbt
 //Custom types too
 false.nbt
 UUID.randomUUID().nbt
-

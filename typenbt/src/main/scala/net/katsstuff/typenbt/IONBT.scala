@@ -29,7 +29,7 @@ import scala.util.{Failure, Success, Try}
 
 object IONBT {
 
-  private final val UTF8 = StandardCharsets.UTF_8
+  final private val UTF8 = StandardCharsets.UTF_8
 
   /**
 		* Writes an [[net.katsstuff.typenbt.NBTCompound]] to an [[java.io.OutputStream]]
@@ -132,12 +132,11 @@ object IONBT {
       case (f @ Failure(_), _) => f
     }
 
-  private def writeLongArray(stream: DataOutputStream, array: Array[Long]): Try[Unit] = {
+  private def writeLongArray(stream: DataOutputStream, array: Array[Long]): Try[Unit] =
     array.foldLeft(Try(stream.writeInt(array.length))) {
       case (Success(_), long)  => Try(stream.writeLong(long))
       case (f @ Failure(_), _) => f
     }
-  }
 
   private def writeType(stream: DataOutputStream, tagType: NBTType[_, _ <: NBTTag]): Try[Unit] =
     Try(stream.writeByte(tagType.id))

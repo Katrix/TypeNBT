@@ -38,11 +38,11 @@ package object typenbt {
       implicit extract: NBTType[Repr, NBT]
   ): NBTType[Repr, NBT] = infer.infer[NBT]
 
-  implicit def reprOps[Repr](repr: Repr):       NBTView.ReprOps[Repr] = NBTView.ReprOps(repr)
-  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT]   = NBTView.NBTOps(nbt)
+  implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr]     = NBTView.ReprOps(repr)
+  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT] = NBTView.NBTOps(nbt)
 
   object NBTBoolean extends NBTViewCaseLike[Boolean, NBTByte] {
-    override def to(v: Boolean):     NBTByte         = NBTByte(if (v) 1 else 0)
+    override def to(v: Boolean): NBTByte             = NBTByte(if (v) 1 else 0)
     override def from(arg: NBTByte): Option[Boolean] = Some(arg.value == 1)
   }
 

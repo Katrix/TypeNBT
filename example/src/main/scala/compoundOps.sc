@@ -2,7 +2,9 @@ import java.util.UUID
 
 import net.katsstuff.typenbt._
 
-val compound = NBTCompound(Map("Hi" -> 2.nbt, "There" -> "Nope".nbt, "Nested" -> NBTCompound(Map("InNested" -> false.nbt))))
+val compound = NBTCompound(
+  Map("Hi" -> 2.nbt, "There" -> "Nope".nbt, "Nested" -> NBTCompound(Map("InNested" -> false.nbt)))
+)
 compound.getValue[String]("There")
 compound.setValue("Foo", 5)
 compound.getNested("Nested", "InNested")

@@ -74,7 +74,7 @@ object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
   }
 
   def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
-  def forRepr[Repr] = new InferViewFromRepr[Repr](())
+  def forRepr[Repr]                                                                     = new InferViewFromRepr[Repr](())
 
   implicit class ReprOps[Repr](private val repr: Repr) extends AnyVal {
     def nbt[NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBT = view.to(repr)
@@ -104,7 +104,7 @@ object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
   * @tparam NBT The corresponding nbt type
   */
 trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
-  def apply(v: Repr):    NBT          = to(v)
+  def apply(v: Repr): NBT             = to(v)
   def unapply(arg: NBT): Option[Repr] = from(arg)
   override def extend[NewRepr](f: Repr => Option[NewRepr], fInverse: NewRepr => Repr): NBTViewCaseLike[NewRepr, NBT] =
     new ExtendedNBTView(this, f, fInverse) with NBTViewCaseLike[NewRepr, NBT]
@@ -154,7 +154,7 @@ class SafeExtendedNBTView[NewRepr, Repr, NBT <: NBTTag](
     fInverse: NewRepr => Repr
 ) extends SafeNBTView[NewRepr, NBT] {
   override def fromSafe(arg: NBT): NewRepr = f(underlying.fromSafe(arg))
-  override def to(v: NewRepr):     NBT     = underlying.to(fInverse(v))
+  override def to(v: NewRepr): NBT         = underlying.to(fInverse(v))
 }
 
 /**
@@ -175,7 +175,7 @@ object NBTType {
   }
 
   def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType[Repr, NBT]): NBTType[Repr, NBT] = nbtType
-  def forRepr[Repr] = new InferTypeFromRepr[Repr]
+  def forRepr[Repr]                                                                                  = new InferTypeFromRepr[Repr]
 
   /**
     * Convert a numerical id to a [[NBTType]]
@@ -210,83 +210,83 @@ sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 
 trait NBTTypeInstances extends NBTViewInstances {
 
-  val TagEnd:       TAG_End.type        = TAG_End
-  val TagByte:      TAG_Byte.type       = TAG_Byte
-  val TagShort:     TAG_Short.type      = TAG_Short
-  val TagInt:       TAG_Int.type        = TAG_Int
-  val TagLong:      TAG_Long.type       = TAG_Long
-  val TagFloat:     TAG_Float.type      = TAG_Float
-  val TagDouble:    TAG_Double.type     = TAG_Double
+  val TagEnd: TAG_End.type              = TAG_End
+  val TagByte: TAG_Byte.type            = TAG_Byte
+  val TagShort: TAG_Short.type          = TAG_Short
+  val TagInt: TAG_Int.type              = TAG_Int
+  val TagLong: TAG_Long.type            = TAG_Long
+  val TagFloat: TAG_Float.type          = TAG_Float
+  val TagDouble: TAG_Double.type        = TAG_Double
   val TagByteArray: TAG_Byte_Array.type = TAG_Byte_Array
-  val TagString:    TAG_String.type     = TAG_String
-  val TagCompound:  TAG_Compound.type   = TAG_Compound
-  val TagIntArray:  TAG_Int_Array.type  = TAG_Int_Array
+  val TagString: TAG_String.type        = TAG_String
+  val TagCompound: TAG_Compound.type    = TAG_Compound
+  val TagIntArray: TAG_Int_Array.type   = TAG_Int_Array
   val TagLongArray: TAG_Long_Array.type = TAG_Long_Array
 
-  private[typenbt] case object AnyTag extends NBTType[Any, NBTTag.Aux[Any]] {
-    override def id:         Byte            = throw new IllegalStateException("Tried to get ID for any tag")
+  private[typenbt] case object AnyTagType extends NBTType[Any, NBTTag.Aux[Any]] {
+    override def id: Byte                    = throw new IllegalStateException("Tried to get ID for any tag")
     override def to(v: Any): NBTTag.Aux[Any] = throw new IllegalStateException("Tried to construct any tag")
   }
 
   //Official names for them
   case object TAG_End extends NBTType[Nothing, NBTEnd] {
-    override def id:                Byte            = 0
-    override def to(v: Nothing):    NBTEnd          = throw new IllegalStateException("Tried to construct end tag")
+    override def id: Byte                           = 0
+    override def to(v: Nothing): NBTEnd             = throw new IllegalStateException("Tried to construct end tag")
     override def from(arg: NBTEnd): Option[Nothing] = throw new IllegalStateException("Tried to deconstruct end tag")
   }
 
   implicit case object TAG_Byte extends NBTType[Byte, NBTByte] {
-    override def id:          Byte    = 1
+    override def id: Byte             = 1
     override def to(v: Byte): NBTByte = NBTByte(v)
   }
 
   implicit case object TAG_Short extends NBTType[Short, NBTShort] {
-    override def id:           Byte     = 2
+    override def id: Byte               = 2
     override def to(v: Short): NBTShort = NBTShort(v)
   }
 
   implicit case object TAG_Int extends NBTType[Int, NBTInt] {
-    override def id:         Byte   = 3
+    override def id: Byte           = 3
     override def to(v: Int): NBTInt = NBTInt(v)
   }
 
   implicit case object TAG_Long extends NBTType[Long, NBTLong] {
-    override def id:          Byte    = 4
+    override def id: Byte             = 4
     override def to(v: Long): NBTLong = NBTLong(v)
   }
 
   implicit case object TAG_Float extends NBTType[Float, NBTFloat] {
-    override def id:           Byte     = 5
+    override def id: Byte               = 5
     override def to(v: Float): NBTFloat = NBTFloat(v)
   }
 
   implicit case object TAG_Double extends NBTType[Double, NBTDouble] {
-    override def id:            Byte      = 6
+    override def id: Byte                 = 6
     override def to(v: Double): NBTDouble = NBTDouble(v)
   }
 
   implicit case object TAG_Byte_Array extends NBTType[IndexedSeq[Byte], NBTByteArray] {
-    override def id:                      Byte         = 7
+    override def id: Byte                              = 7
     override def to(v: IndexedSeq[Byte]): NBTByteArray = NBTByteArray(v)
   }
 
   implicit case object TAG_String extends NBTType[String, NBTString] {
-    override def id:            Byte      = 8
+    override def id: Byte                 = 8
     override def to(v: String): NBTString = NBTString(v)
   }
 
   implicit case object TAG_Compound extends NBTType[Map[String, NBTTag], NBTCompound] {
-    override def id:                         Byte        = 10
+    override def id: Byte                                = 10
     override def to(v: Map[String, NBTTag]): NBTCompound = NBTCompound(v)
   }
 
   implicit case object TAG_Int_Array extends NBTType[IndexedSeq[Int], NBTIntArray] {
-    override def id:                     Byte        = 11
+    override def id: Byte                            = 11
     override def to(v: IndexedSeq[Int]): NBTIntArray = NBTIntArray(v)
   }
 
   implicit case object TAG_Long_Array extends NBTType[IndexedSeq[Long], NBTLongArray] {
-    override def id:                      Byte         = 12
+    override def id: Byte                              = 12
     override def to(v: IndexedSeq[Long]): NBTLongArray = NBTLongArray(v)
   }
 
@@ -296,13 +296,13 @@ trait NBTTypeInstances extends NBTViewInstances {
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
   //A raw list with no checks. If used wrong, this WILL cause problems
-  private[typenbt] case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](NBTView.AnyTag)
+  private[typenbt] case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](NBTView.AnyTagType)
 }
 
 trait NBTViewInstances extends LowPriorityViewInstances {
 
   implicit val BooleanView: NBTBoolean.type = NBTBoolean
-  implicit val UUIDView:    NBTUUID.type    = NBTUUID
+  implicit val UUIDView: NBTUUID.type       = NBTUUID
 
   implicit def mapView[ElemRepr, ElemNBT <: NBTTag](
       implicit view: NBTView[ElemRepr, ElemNBT],
@@ -342,12 +342,12 @@ trait LowPriorityViewInstances {
 trait NBTViewCaseCreator {
 
   implicit val hNilView: NBTView[HNil, NBTCompound] = new NBTView[HNil, NBTCompound] {
-    override def to(v: HNil):            NBTCompound  = NBTCompound()
+    override def to(v: HNil): NBTCompound             = NBTCompound()
     override def from(arg: NBTCompound): Option[HNil] = Some(HNil)
   }
 
   implicit val cNilView: NBTView[CNil, NBTCompound] = new NBTView[CNil, NBTCompound] {
-    override def to(v: CNil):            NBTCompound  = v.impossible
+    override def to(v: CNil): NBTCompound             = v.impossible
     override def from(arg: NBTCompound): Option[CNil] = sys.error("cnil")
   }
 
@@ -362,12 +362,11 @@ trait NBTViewCaseCreator {
     override def to(v: FieldType[Name, Head] :: Tail): NBTCompound =
       vt.value.to(v.tail).set(name.value.name, vh.value.to(v.head))
 
-    override def from(arg: NBTCompound): Option[FieldType[Name, Head] :: Tail] = {
+    override def from(arg: NBTCompound): Option[FieldType[Name, Head] :: Tail] =
       for {
         head <- arg.get(name.value.name).flatMap(tpe.cast(_).flatMap(vh.value.from))
         tail <- vt.value.from(arg)
       } yield labelled.field[Name](head) :: tail
-    }
   }
 
   //FIXME: LeftNBT is probably problematic
@@ -383,19 +382,18 @@ trait NBTViewCaseCreator {
       case Inr(r) => vr.value.to(r)
     }
 
-    override def from(arg: NBTCompound): Option[FieldType[Name, Left] :+: Right] = {
+    override def from(arg: NBTCompound): Option[FieldType[Name, Left] :+: Right] =
       arg.get(name.value.name) match {
         case Some(tag) => tpe.cast(tag).flatMap(vl.value.from(_).map(l => Inl(labelled.field[Name](l))))
         case None      => vr.value.from(arg).map(Inr(_))
       }
-    }
   }
 
   implicit def caseToView[A, HList](
       implicit gen: LabelledGeneric.Aux[A, HList],
       ser: Lazy[NBTView[HList, NBTCompound]]
   ): NBTView[A, NBTCompound] = new NBTView[A, NBTCompound] {
-    override def to(v: A):               NBTCompound = ser.value.to(gen.to(v))
-    override def from(arg: NBTCompound): Option[A]   = ser.value.from(arg).map(gen.from)
+    override def to(v: A): NBTCompound             = ser.value.to(gen.to(v))
+    override def from(arg: NBTCompound): Option[A] = ser.value.from(arg).map(gen.from)
   }
 }
