@@ -25,8 +25,11 @@ import scala.util.matching.Regex
 import fastparse.WhitespaceApi
 import fastparse.core.{Mutable, ParseCtx}
 import fastparse.noApi._
+import net.katsstuff.typenbt.IONBT.AnyTag
 
 object Mojangson {
+
+  private type AnyTag = NBTTag.Aux[Any]
 
   /**
 		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
@@ -111,10 +114,10 @@ object Mojangson {
         case seq if seq.nonEmpty =>
           val mapped   = seq.map(_._2)
           val head     = mapped.head
-          val withType = mapped.asInstanceOf[Seq[head.Self]]
-          val nbtType  = new NBTListType(head.nbtType)
+          val nbtType  = new NBTListType(head.nbtType.asInstanceOf[NBTType[Any, AnyTag]])
+          val withType = mapped.asInstanceOf[Seq[AnyTag]]
 
-          NBTList[head.Repr, head.Self](withType)(nbtType)
+          NBTList[Any, AnyTag](withType)(nbtType)
         case _ => NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, AnyTag]] //We use byte if there are no elements
       }
       .opaque("NBT List")
