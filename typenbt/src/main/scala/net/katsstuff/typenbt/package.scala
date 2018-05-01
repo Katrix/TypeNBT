@@ -26,12 +26,15 @@ import scala.language.implicitConversions
 
 package object typenbt {
 
-  implicit def reprOps[Repr](repr: Repr): NBTView.ReprOps[Repr]     = new NBTView.ReprOps(repr)
-  implicit def nbtOps[NBT <: NBTTag](nbt: NBT): NBTView.NBTOps[NBT] = new NBTView.NBTOps(nbt)
+  implicit def reprSerOps[Repr](repr: Repr): NBTSerializer.ReprOps[Repr]         = new NBTSerializer.ReprOps(repr)
+  implicit def nbtSerOps[NBT <: NBTTag](nbt: NBT): NBTSerializer.NBTOps[NBT]     = new NBTSerializer.NBTOps(nbt)
+  implicit def nbtDeserOps[NBT <: NBTTag](nbt: NBT): NBTDeserializer.NBTOps[NBT] = new NBTDeserializer.NBTOps(nbt)
+  implicit def nbtSafeDeserOps[NBT <: NBTTag](nbt: NBT): SafeNBTDeserializer.NBTOps[NBT] =
+    new SafeNBTDeserializer.NBTOps(nbt)
 
-  object NBTBoolean extends NBTViewCaseLike[Boolean, NBTByte] {
-    override def to(v: Boolean): NBTByte             = NBTByte(if (v) 1 else 0)
-    override def from(arg: NBTByte): Option[Boolean] = Some(arg.value == 1)
+  object NBTBoolean extends SafeNBTViewCaseLike[Boolean, NBTByte] { self =>
+    override def to(v: Boolean): NBTByte         = NBTByte(if (v) 1 else 0)
+    override def fromSafe(arg: NBTByte): Boolean = arg.value == 1
   }
 
   object NBTUUID extends NBTViewCaseLike[UUID, NBTCompound] {

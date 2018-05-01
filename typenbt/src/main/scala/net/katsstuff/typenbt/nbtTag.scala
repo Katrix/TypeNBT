@@ -52,13 +52,15 @@ sealed trait NBTTag {
     *   val stringNbt: NBTString = NBTInt(5).modify(_.toString)
     * }}}
     * @param f The function to apply to the NBT
-    * @param newView A view providing a way to get back to the world
+    * @param serializer A view providing a way to get back to the world
     *                of NBTs after the modification.
     * @tparam NewRepr The new value type
     * @tparam NewNBT The new NBT type
     */
-  def modify[NewRepr, NewNBT <: NBTTag](f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): NewNBT =
-    newView.to(f(value))
+  def modify[NewRepr, NewNBT <: NBTTag](
+      f: Repr => NewRepr
+  )(implicit serializer: NBTSerializer[NewRepr, NewNBT]): NewNBT =
+    serializer.to(f(value))
 }
 
 object NBTTag {
@@ -71,39 +73,39 @@ object NBTTag {
   */
 sealed trait NBTEnd extends NBTTag {
   override type Repr = Nothing
-  override def nbtType: NBTType[Repr, NBTEnd] = NBTView.TagEnd
+  override def nbtType: NBTType[Repr, NBTEnd] = NBTType.TagEnd
 }
 final case class NBTByte(value: Byte) extends NBTTag {
   override type Repr = Byte
-  override def nbtType: NBTType[Repr, NBTByte] = NBTView.TagByte
+  override def nbtType: NBTType[Repr, NBTByte] = NBTType.TagByte
 }
 final case class NBTShort(value: Short) extends NBTTag {
   override type Repr = Short
-  override def nbtType: NBTType[Repr, NBTShort] = NBTView.TagShort
+  override def nbtType: NBTType[Repr, NBTShort] = NBTType.TagShort
 }
 final case class NBTInt(value: Int) extends NBTTag {
   override type Repr = Int
-  override def nbtType: NBTType[Repr, NBTInt] = NBTView.TagInt
+  override def nbtType: NBTType[Repr, NBTInt] = NBTType.TagInt
 }
 final case class NBTLong(value: Long) extends NBTTag {
   override type Repr = Long
-  override def nbtType: NBTType[Repr, NBTLong] = NBTView.TagLong
+  override def nbtType: NBTType[Repr, NBTLong] = NBTType.TagLong
 }
 final case class NBTFloat(value: Float) extends NBTTag {
   override type Repr = Float
-  override def nbtType: NBTType[Repr, NBTFloat] = NBTView.TagFloat
+  override def nbtType: NBTType[Repr, NBTFloat] = NBTType.TagFloat
 }
 final case class NBTDouble(value: Double) extends NBTTag {
   override type Repr = Double
-  override def nbtType: NBTType[Repr, NBTDouble] = NBTView.TagDouble
+  override def nbtType: NBTType[Repr, NBTDouble] = NBTType.TagDouble
 }
 final case class NBTByteArray(value: IndexedSeq[Byte]) extends NBTTag {
   override type Repr = IndexedSeq[Byte]
-  override def nbtType: NBTType[Repr, NBTByteArray] = NBTView.TagByteArray
+  override def nbtType: NBTType[Repr, NBTByteArray] = NBTType.TagByteArray
 }
 final case class NBTString(value: String) extends NBTTag {
   override type Repr = String
-  override def nbtType: NBTType[String, NBTString] = NBTView.TagString
+  override def nbtType: NBTType[String, NBTString] = NBTType.TagString
 }
 
 final case class NBTList[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
@@ -158,7 +160,7 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   import NBTCompound.NamedTag
 
   override type Repr = Map[String, NBTTag]
-  override def nbtType: NBTType[Repr, NBTCompound] = NBTView.TagCompound
+  override def nbtType: NBTType[Repr, NBTCompound] = NBTType.TagCompound
 
   /**
 		* The size of this compound.
@@ -198,12 +200,14 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		*
 		* @param key The key to bind to.
 		* @param value The value top set
-		* @param view The converter to convert the value to a NBTTag
+		* @param serializer The converter to convert the value to a NBTTag
 		* @tparam Repr The type to convert from
 		* @tparam NBT The tag to convert to
 		*/
-  def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(implicit view: NBTView[Repr, NBT]): NBTCompound =
-    set(key, view.to(value))
+  def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(
+      implicit serializer: NBTSerializer[Repr, NBT]
+  ): NBTCompound =
+    set(key, serializer.to(value))
 
   /**
 		* Creates two [[NBTLong]] tags from the UUID and sets the tags.
@@ -332,12 +336,12 @@ object NBTCompound {
 
   type NamedTag = (String, NBTTag)
 
-  def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit view: NBTView[Repr, NBT]): NBTCompound =
-    new NBTCompound(map.mapValues(view.to))
+  def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit serializer: NBTSerializer[Repr, NBT]): NBTCompound =
+    new NBTCompound(map.mapValues(serializer.to))
 
   object tupleToNBT extends Poly1 {
-    implicit def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]) =
-      at[(String, Repr)] { case (name, value) => name -> view.to(value) }
+    implicit def apply[Repr, NBT <: NBTTag](implicit serializer: NBTSerializer[Repr, NBT]) =
+      at[(String, Repr)] { case (name, value) => name -> serializer.to(value) }
   }
 
   def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
@@ -347,12 +351,16 @@ object NBTCompound {
   ) = NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
 
   class GetValue[Repr](private val compound: NBTCompound) extends AnyVal {
-    def apply[NBT <: NBTTag](key: String)(implicit view: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
-      compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(view.from))
+    def apply[NBT <: NBTTag](
+        key: String
+    )(implicit deserializer: NBTDeserializer[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
+      compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(deserializer.from))
   }
 
   class GetRecursiveValue[Repr](private val compound: NBTCompound) extends AnyVal {
-    def apply[NBT <: NBTTag](keys: String*)(implicit from: NBTView[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
+    def apply[NBT <: NBTTag](
+        keys: String*
+    )(implicit deserializer: NBTDeserializer[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
       val tail = keys.tail
       if (tail == Nil) compound.getValue[Repr](keys.head)
       else
@@ -366,9 +374,9 @@ object NBTCompound {
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
   override type Repr = IndexedSeq[Int]
-  override def nbtType: NBTType[Repr, NBTIntArray] = NBTView.TagIntArray
+  override def nbtType: NBTType[Repr, NBTIntArray] = NBTType.TagIntArray
 }
 final case class NBTLongArray(value: IndexedSeq[Long]) extends NBTTag {
   override type Repr = IndexedSeq[Long]
-  override def nbtType: NBTType[IndexedSeq[Long], NBTLongArray] = NBTView.TagLongArray
+  override def nbtType: NBTType[IndexedSeq[Long], NBTLongArray] = NBTType.TagLongArray
 }

@@ -20,27 +20,227 @@
  */
 package net.katsstuff.typenbt
 
+import java.util.UUID
+
 import scala.language.{existentials, higherKinds}
 
 import shapeless._
 import shapeless.labelled.FieldType
 
 /**
-  * A NBTView is a sort of Prism allowing you to see and modify NBT easier.
-  * @tparam Repr The type it represents
-  * @tparam NBT The corresponding nbt type
+  * A typeclass responsible for serializing values into NBT.
+  * @tparam Repr The type it serializes.
+  * @tparam NBT The resulting NBT type.
   */
-trait NBTView[Repr, NBT <: NBTTag] {
+trait NBTSerializer[-Repr, +NBT <: NBTTag] { self =>
 
   /**
-    * Convert to NBT
+    * Convert a value to NBT.
     */
   def to(v: Repr): NBT
 
   /**
-    * Convert from NBT
+    * Create a new serializer that uses this serializer as a stepping stone.
+    */
+  def contramap[NewRepr](f: NewRepr => Repr): NBTSerializer[NewRepr, NBT] = (v: NewRepr) => self.to(f(v))
+
+  /**
+    * Maps the NBT that resulted from using this serializer.
+    */
+  def mapNbt[NewNBT <: NBTTag](f: NBT => NewNBT): NBTSerializer[Repr, NewNBT] = (v: Repr) => f(self.to(v))
+}
+object NBTSerializer extends LowPriorityNBTSerializers {
+  def apply[Repr, NBT <: NBTTag](implicit ser: NBTSerializer[Repr, NBT]): NBTSerializer[Repr, NBT] = ser
+
+  class ReprOps[Repr](private val repr: Repr) extends AnyVal {
+    def nbt[NBT <: NBTTag](implicit ser: NBTSerializer[Repr, NBT]): NBT = ser.to(repr)
+  }
+
+  class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
+    def set[Repr](repr: Repr)(implicit ser: NBTSerializer[Repr, NBT]): NBT = ser.to(repr)
+  }
+
+  val TagEnd: NBTSerializer[Nothing, NBTEnd]                                = NBTType.TAG_End
+  implicit val TagByte: NBTSerializer[Byte, NBTByte]                        = NBTType.TAG_Byte
+  implicit val TagShort: NBTSerializer[Short, NBTShort]                     = NBTType.TAG_Short
+  implicit val TagInt: NBTSerializer[Int, NBTInt]                           = NBTType.TAG_Int
+  implicit val TagLong: NBTSerializer[Long, NBTLong]                        = NBTType.TAG_Long
+  implicit val TagFloat: NBTSerializer[Float, NBTFloat]                     = NBTType.TAG_Float
+  implicit val TagDouble: NBTSerializer[Double, NBTDouble]                  = NBTType.TAG_Double
+  implicit val TagByteArray: NBTSerializer[IndexedSeq[Byte], NBTByteArray]  = NBTType.TAG_Byte_Array
+  implicit val TagString: NBTSerializer[String, NBTString]                  = NBTType.TAG_String
+  implicit val TagCompound: NBTSerializer[Map[String, NBTTag], NBTCompound] = NBTType.TAG_Compound
+  implicit val TagIntArray: NBTSerializer[IndexedSeq[Int], NBTIntArray]     = NBTType.TAG_Int_Array
+  implicit val TagLongArray: NBTSerializer[IndexedSeq[Long], NBTLongArray]  = NBTType.TAG_Long_Array
+
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](
+      implicit elementType: NBTType[ElemRepr, ElemNBT]
+  ): NBTSerializer[Seq[ElemNBT], NBTList[ElemRepr, ElemNBT]] = NBTType.listType[ElemRepr, ElemNBT]
+}
+trait LowPriorityNBTSerializers extends ExtraLowPriorityNBTSerializers {
+
+  implicit val BooleanView: NBTSerializer[Boolean, NBTByte] = NBTBoolean
+  implicit val UUIDView: NBTSerializer[UUID, NBTCompound]   = NBTUUID
+
+  implicit def mapSer[ElemRepr, ElemNBT <: NBTTag](
+      implicit ser: NBTSerializer[ElemRepr, ElemNBT]
+  ): NBTSerializer[Map[String, ElemRepr], NBTCompound] =
+    (v: Map[String, ElemRepr]) => NBTCompound(v.mapValues(ser.to))
+}
+
+trait ExtraLowPriorityNBTSerializers {
+
+  implicit def seqSer[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
+      implicit ser: NBTSerializer[SeqRepr, ListNBT],
+      listType: NBTListType[ListNBTRepr, ListNBT]
+  ): NBTSerializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
+    (v: Seq[SeqRepr]) => NBTList[ListNBTRepr, ListNBT](v.map(ser.to))
+}
+
+/**
+  * A typeclass responsible for deserializing values from NBT.
+  * @tparam Repr The type it deserialize to.
+  * @tparam NBT The original NBT type.
+  */
+trait NBTDeserializer[+Repr, -NBT <: NBTTag] { self =>
+
+  /**
+    * Convert a value from NBT.
     */
   def from(arg: NBT): Option[Repr]
+
+  /**
+    * Map the result of running this deserializer.
+    */
+  def map[NewRepr](f: Repr => NewRepr): NBTDeserializer[NewRepr, NBT] =
+    (arg: NBT) => self.from(arg).map(f)
+
+  /**
+    * Map the result of running this deserializer using a function that can fail.
+    */
+  def optMap[NewRepr](f: Repr => Option[NewRepr]): NBTDeserializer[NewRepr, NBT] =
+    (arg: NBT) => self.from(arg).flatMap(f)
+
+  /**
+    * Create a new deserializer that changes the NBT type and uses this
+    * deserializer as a stepping stone.
+    */
+  def contramapNbt[NewNBT <: NBTTag](f: NewNBT => NBT): NBTDeserializer[Repr, NewNBT] =
+    (arg: NewNBT) => self.from(f(arg))
+}
+object NBTDeserializer extends LowPriorityNBTDeserializers {
+  def apply[Repr, NBT <: NBTTag](implicit deser: NBTDeserializer[Repr, NBT]): NBTDeserializer[Repr, NBT] = deser
+
+  class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
+    def as[Repr](implicit deser: NBTDeserializer[Repr, NBT]): Option[Repr] = deser.from(nbt)
+  }
+
+  val TagEnd: NBTDeserializer[Nothing, NBTEnd]                                = NBTType.TAG_End
+  implicit val TagByte: NBTDeserializer[Byte, NBTByte]                        = NBTType.TAG_Byte
+  implicit val TagShort: NBTDeserializer[Short, NBTShort]                     = NBTType.TAG_Short
+  implicit val TagInt: NBTDeserializer[Int, NBTInt]                           = NBTType.TAG_Int
+  implicit val TagLong: NBTDeserializer[Long, NBTLong]                        = NBTType.TAG_Long
+  implicit val TagFloat: NBTDeserializer[Float, NBTFloat]                     = NBTType.TAG_Float
+  implicit val TagDouble: NBTDeserializer[Double, NBTDouble]                  = NBTType.TAG_Double
+  implicit val TagByteArray: NBTDeserializer[IndexedSeq[Byte], NBTByteArray]  = NBTType.TAG_Byte_Array
+  implicit val TagString: NBTDeserializer[String, NBTString]                  = NBTType.TAG_String
+  implicit val TagCompound: NBTDeserializer[Map[String, NBTTag], NBTCompound] = NBTType.TAG_Compound
+  implicit val TagIntArray: NBTDeserializer[IndexedSeq[Int], NBTIntArray]     = NBTType.TAG_Int_Array
+  implicit val TagLongArray: NBTDeserializer[IndexedSeq[Long], NBTLongArray]  = NBTType.TAG_Long_Array
+
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](
+      implicit elementType: NBTType[ElemRepr, ElemNBT]
+  ): NBTDeserializer[Seq[ElemNBT], NBTList[ElemRepr, ElemNBT]] = NBTType.listType[ElemRepr, ElemNBT]
+}
+trait LowPriorityNBTDeserializers extends ExtraLowPriorityNBTDeserializers {
+  implicit val BooleanView: NBTDeserializer[Boolean, NBTByte] = NBTBoolean
+  implicit val UUIDView: NBTDeserializer[UUID, NBTCompound]   = NBTUUID
+
+  implicit def mapDeser[ElemRepr, ElemNBT <: NBTTag](
+      implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
+      typeable: Typeable[ElemNBT]
+  ): NBTDeserializer[Map[String, ElemRepr], NBTCompound] =
+    (arg: NBTCompound) =>
+      Some(
+        for {
+          (str, nbt) <- arg.value
+          typed      <- typeable.cast(nbt).toSeq
+          mapped     <- deser.from(typed).toSeq
+        } yield str -> mapped
+    )
+}
+
+trait ExtraLowPriorityNBTDeserializers {
+
+  implicit def seqDeser[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
+      implicit deser: NBTDeserializer[SeqRepr, ListNBT]
+  ): NBTDeserializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
+    (arg: NBTList[ListNBTRepr, ListNBT]) => Some(arg.value.flatMap(deser.from))
+}
+
+trait SafeNBTDeserializer[+Repr, -NBT <: NBTTag] extends NBTDeserializer[Repr, NBT] { self =>
+
+  override def from(arg: NBT): Option[Repr] = Some(fromSafe(arg))
+
+  /**
+    * A safer version of [[NBTDeserializer.from]] that can't fail.
+    */
+  def fromSafe(arg: NBT): Repr
+
+  override def map[NewRepr](f: Repr => NewRepr): SafeNBTDeserializer[NewRepr, NBT] = (arg: NBT) => f(self.fromSafe(arg))
+}
+object SafeNBTDeserializer extends LowPrioritySafeNBTDeserializers {
+  def apply[Repr, NBT <: NBTTag](implicit deser: SafeNBTDeserializer[Repr, NBT]): SafeNBTDeserializer[Repr, NBT] = deser
+
+  class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
+    def safeAs[Repr](implicit safeDeser: SafeNBTDeserializer[Repr, NBT]): Repr = safeDeser.fromSafe(nbt)
+  }
+
+  val TagEnd: SafeNBTDeserializer[Nothing, NBTEnd]                                = NBTType.TAG_End
+  implicit val TagByte: SafeNBTDeserializer[Byte, NBTByte]                        = NBTType.TAG_Byte
+  implicit val TagShort: SafeNBTDeserializer[Short, NBTShort]                     = NBTType.TAG_Short
+  implicit val TagInt: SafeNBTDeserializer[Int, NBTInt]                           = NBTType.TAG_Int
+  implicit val TagLong: SafeNBTDeserializer[Long, NBTLong]                        = NBTType.TAG_Long
+  implicit val TagFloat: SafeNBTDeserializer[Float, NBTFloat]                     = NBTType.TAG_Float
+  implicit val TagDouble: SafeNBTDeserializer[Double, NBTDouble]                  = NBTType.TAG_Double
+  implicit val TagByteArray: SafeNBTDeserializer[IndexedSeq[Byte], NBTByteArray]  = NBTType.TAG_Byte_Array
+  implicit val TagString: SafeNBTDeserializer[String, NBTString]                  = NBTType.TAG_String
+  implicit val TagCompound: SafeNBTDeserializer[Map[String, NBTTag], NBTCompound] = NBTType.TAG_Compound
+  implicit val TagIntArray: SafeNBTDeserializer[IndexedSeq[Int], NBTIntArray]     = NBTType.TAG_Int_Array
+  implicit val TagLongArray: SafeNBTDeserializer[IndexedSeq[Long], NBTLongArray]  = NBTType.TAG_Long_Array
+
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](
+      implicit elementType: NBTType[ElemRepr, ElemNBT]
+  ): SafeNBTDeserializer[Seq[ElemNBT], NBTList[ElemRepr, ElemNBT]] = NBTType.listType[ElemRepr, ElemNBT]
+}
+trait LowPrioritySafeNBTDeserializers extends ExtraLowPrioritySafeNBTDeserializers {
+  implicit val BooleanView: SafeNBTDeserializer[Boolean, NBTByte] = NBTBoolean
+
+  implicit def mapSafeDeser[ElemRepr, ElemNBT <: NBTTag](
+      implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
+      typeable: Typeable[ElemNBT]
+  ): SafeNBTDeserializer[Map[String, ElemRepr], NBTCompound] =
+    (arg: NBTCompound) =>
+      for {
+        (str, nbt) <- arg.value
+        typed      <- typeable.cast(nbt).toSeq
+        mapped     <- deser.from(typed).toSeq
+      } yield str -> mapped
+}
+trait ExtraLowPrioritySafeNBTDeserializers {
+
+  implicit def seqSafeDeser[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
+      implicit deser: NBTDeserializer[SeqRepr, ListNBT]
+  ): SafeNBTDeserializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
+    (arg: NBTList[ListNBTRepr, ListNBT]) => arg.value.flatMap(deser.from)
+}
+
+/**
+  * A NBTView is a sort of Prism allowing you to see and modify NBT easier.
+  * @tparam Repr The type it represents
+  * @tparam NBT The corresponding nbt type
+  */
+trait NBTView[Repr, NBT <: NBTTag] extends NBTSerializer[Repr, NBT] with NBTDeserializer[Repr, NBT] { self =>
 
   /**
     * Modifies a nbt in value form before returning a new NBT.
@@ -61,32 +261,51 @@ trait NBTView[Repr, NBT <: NBTTag] {
   )(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): Option[NewNBT] =
     from(nbt).map(a => newView.to(f(a)))
 
-  def extend[NewRepr](f: Repr => Option[NewRepr], fInverse: NewRepr => Repr): NBTView[NewRepr, NBT] =
-    new ExtendedNBTView(this, f, fInverse)
+  def imap[NewRepr](f: Repr => NewRepr, g: NewRepr => Repr): NBTView[NewRepr, NBT] = new NBTView[NewRepr, NBT] {
+    override def to(v: NewRepr): NBT             = self.to(g(v))
+    override def from(arg: NBT): Option[NewRepr] = self.from(arg).map(f)
+  }
+
+  def imapOpt[NewRepr](f: Repr => Option[NewRepr], g: NewRepr => Repr): NBTView[NewRepr, NBT] =
+    new NBTView[NewRepr, NBT] {
+      override def to(v: NewRepr): NBT             = self.to(g(v))
+      override def from(arg: NBT): Option[NewRepr] = self.from(arg).flatMap(f)
+    }
+
+  def imapNbt[NewNBT <: NBTTag](f: NBT => NewNBT, g: NewNBT => NBT): NBTView[Repr, NewNBT] = new NBTView[Repr, NewNBT] {
+    override def to(v: Repr): NewNBT             = f(self.to(v))
+    override def from(arg: NewNBT): Option[Repr] = self.from(g(arg))
+  }
 }
 
-object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
-
-  class InferViewFromRepr[Repr](private val dummy: Unit = ()) extends AnyVal {
-    def infer[NBT <: NBTTag](implicit infer: NBTView[Repr, NBT]): NBTView[Repr, NBT] = infer
-  }
+object NBTView extends LowPriorityNBTViews {
 
   def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
-  def forRepr[Repr]                                                                     = new InferViewFromRepr[Repr]
 
-  class ReprOps[Repr](private val repr: Repr) extends AnyVal {
-    def nbt[NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBT = view.to(repr)
-  }
+  val TagEnd: NBTView[Nothing, NBTEnd]                                = NBTType.TAG_End
+  implicit val TagByte: NBTView[Byte, NBTByte]                        = NBTType.TAG_Byte
+  implicit val TagShort: NBTView[Short, NBTShort]                     = NBTType.TAG_Short
+  implicit val TagInt: NBTView[Int, NBTInt]                           = NBTType.TAG_Int
+  implicit val TagLong: NBTView[Long, NBTLong]                        = NBTType.TAG_Long
+  implicit val TagFloat: NBTView[Float, NBTFloat]                     = NBTType.TAG_Float
+  implicit val TagDouble: NBTView[Double, NBTDouble]                  = NBTType.TAG_Double
+  implicit val TagByteArray: NBTView[IndexedSeq[Byte], NBTByteArray]  = NBTType.TAG_Byte_Array
+  implicit val TagString: NBTView[String, NBTString]                  = NBTType.TAG_String
+  implicit val TagCompound: NBTView[Map[String, NBTTag], NBTCompound] = NBTType.TAG_Compound
+  implicit val TagIntArray: NBTView[IndexedSeq[Int], NBTIntArray]     = NBTType.TAG_Int_Array
+  implicit val TagLongArray: NBTView[IndexedSeq[Long], NBTLongArray]  = NBTType.TAG_Long_Array
 
-  class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
-    def set[Repr](repr: Repr)(implicit view: NBTView[Repr, NBT]): NBT = view.to(repr)
-    def as[Repr](implicit view: NBTView[Repr, NBT]): Option[Repr]     = view.from(nbt)
-    def safeAs[Repr](implicit view: SafeNBTView[Repr, NBT]): Repr     = view.fromSafe(nbt)
-  }
+  implicit def listType[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](
+      implicit elementType: NBTType[ElemRepr, ElemNBT]
+  ): NBTView[Seq[ElemNBT], NBTList[ElemRepr, ElemNBT]] = NBTType.listType[ElemRepr, ElemNBT]
+}
+trait LowPriorityNBTViews {
+  implicit val BooleanView: NBTView[Boolean, NBTByte] = NBTBoolean
+  implicit val UUIDView: NBTView[UUID, NBTCompound]   = NBTUUID
 }
 
 /**
-  * A view that provides extra methods allowing it to make a normal type look
+  * A mixin view that provides extra methods allowing it to make a normal type look
   * like it has an nbt type.
   *
   * Example:
@@ -97,11 +316,27 @@ object NBTView extends NBTTypeInstances with NBTViewCaseCreator {
   * @tparam Repr The type it represents
   * @tparam NBT The corresponding nbt type
   */
-trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
+trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] { self =>
   def apply(v: Repr): NBT             = to(v)
   def unapply(arg: NBT): Option[Repr] = from(arg)
-  override def extend[NewRepr](f: Repr => Option[NewRepr], fInverse: NewRepr => Repr): NBTViewCaseLike[NewRepr, NBT] =
-    new ExtendedNBTView(this, f, fInverse) with NBTViewCaseLike[NewRepr, NBT]
+
+  override def imap[NewRepr](f: Repr => NewRepr, g: NewRepr => Repr): NBTView[NewRepr, NBT] =
+    new NBTViewCaseLike[NewRepr, NBT] {
+      override def to(v: NewRepr): NBT             = self.to(g(v))
+      override def from(arg: NBT): Option[NewRepr] = self.from(arg).map(f)
+    }
+
+  override def imapOpt[NewRepr](f: Repr => Option[NewRepr], g: NewRepr => Repr): NBTViewCaseLike[NewRepr, NBT] =
+    new NBTViewCaseLike[NewRepr, NBT] {
+      override def to(v: NewRepr): NBT             = self.to(g(v))
+      override def from(arg: NBT): Option[NewRepr] = self.from(arg).flatMap(f)
+    }
+
+  override def imapNbt[NewNBT <: NBTTag](f: NBT => NewNBT, g: NewNBT => NBT): NBTView[Repr, NewNBT] =
+    new NBTViewCaseLike[Repr, NewNBT] {
+      override def to(v: Repr): NewNBT             = f(self.to(v))
+      override def from(arg: NewNBT): Option[Repr] = self.from(g(arg))
+    }
 }
 
 /**
@@ -110,17 +345,10 @@ trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
   * @tparam Repr The type it represents
   * @tparam NBT The corresponding nbt type
   */
-trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
+trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] with SafeNBTDeserializer[Repr, NBT] { self =>
 
   /**
-    * A safer version if [[NBTView.from]] that can't fail.
-    */
-  def fromSafe(arg: NBT): Repr
-
-  override def from(arg: NBT): Option[Repr] = Some(fromSafe(arg))
-
-  /**
-    * Same as [[NBTView.modify]] except it uses [[SafeNBTView.fromSafe]]
+    * Same as [[NBTView.modify]] except it uses [[SafeNBTDeserializer.fromSafe]]
     * so the result isn't an option.
     */
   def safeModify[NewRepr, NewNBT <: NBTTag](
@@ -128,34 +356,35 @@ trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
   )(f: Repr => NewRepr)(implicit newView: NBTView[NewRepr, NewNBT]): NewNBT =
     newView.to(f(fromSafe(nbt)))
 
-  def safeExtend[NewRepr](f: Repr => NewRepr, fInverse: NewRepr => Repr): SafeNBTView[NewRepr, NBT] =
-    new SafeExtendedNBTView(this, f, fInverse)
+  override def imap[NewRepr](f: Repr => NewRepr, g: NewRepr => Repr): SafeNBTView[NewRepr, NBT] =
+    new SafeNBTView[NewRepr, NBT] {
+      override def to(v: NewRepr): NBT         = self.to(g(v))
+      override def fromSafe(arg: NBT): NewRepr = f(self.fromSafe(arg))
+    }
+
+  override def imapNbt[NewNBT <: NBTTag](f: NBT => NewNBT, g: NewNBT => NBT): SafeNBTView[Repr, NewNBT] =
+    new SafeNBTView[Repr, NewNBT] {
+      override def to(v: Repr): NewNBT         = f(self.to(v))
+      override def fromSafe(arg: NewNBT): Repr = self.fromSafe(g(arg))
+    }
 }
 
-class ExtendedNBTView[ExtendRepr, Repr, NBT <: NBTTag](
-    underlying: NBTView[Repr, NBT],
-    f: Repr => Option[ExtendRepr],
-    fInverse: ExtendRepr => Repr
-) extends NBTView[ExtendRepr, NBT] {
+/**
+  * A safe variant of the case like mixin.
+  */
+trait SafeNBTViewCaseLike[Repr, NBT <: NBTTag] extends SafeNBTView[Repr, NBT] with NBTViewCaseLike[Repr, NBT] { self =>
 
-  override def to(v: ExtendRepr): NBT             = underlying.to(fInverse(v))
-  override def from(arg: NBT): Option[ExtendRepr] = underlying.from(arg).flatMap(f)
-  override def extend[NewRepr](g: ExtendRepr => Option[NewRepr], gInverse: NewRepr => ExtendRepr): NBTView[NewRepr, NBT] =
-    new ExtendedNBTView[NewRepr, Repr, NBT](underlying, f.andThen(_.flatMap(g)), fInverse.compose(gInverse))
-}
+  override def imap[NewRepr](f: Repr => NewRepr, g: NewRepr => Repr): SafeNBTViewCaseLike[NewRepr, NBT] =
+    new SafeNBTViewCaseLike[NewRepr, NBT] {
+      override def to(v: NewRepr): NBT         = self.to(g(v))
+      override def fromSafe(arg: NBT): NewRepr = f(self.fromSafe(arg))
+    }
 
-class SafeExtendedNBTView[ExtendRepr, Repr, NBT <: NBTTag](
-    underlying: SafeNBTView[Repr, NBT],
-    f: Repr => ExtendRepr,
-    fInverse: ExtendRepr => Repr
-) extends SafeNBTView[ExtendRepr, NBT] {
-  override def fromSafe(arg: NBT): ExtendRepr = f(underlying.fromSafe(arg))
-  override def to(v: ExtendRepr): NBT         = underlying.to(fInverse(v))
-
-  override def extend[NewRepr](g: ExtendRepr => Option[NewRepr], gInverse: NewRepr => ExtendRepr): NBTView[NewRepr, NBT] =
-    new ExtendedNBTView[NewRepr, Repr, NBT](underlying, f.andThen(g), fInverse.compose(gInverse))
-  override def safeExtend[NewRepr](g: ExtendRepr => NewRepr, gInverse: NewRepr => ExtendRepr): SafeNBTView[NewRepr, NBT] =
-    new SafeExtendedNBTView[NewRepr, Repr, NBT](underlying, f.andThen(g), fInverse.compose(gInverse))
+  override def imapNbt[NewNBT <: NBTTag](f: NBT => NewNBT, g: NewNBT => NBT): SafeNBTViewCaseLike[Repr, NewNBT] =
+    new SafeNBTViewCaseLike[Repr, NewNBT] {
+      override def to(v: Repr): NewNBT         = f(self.to(v))
+      override def fromSafe(arg: NewNBT): Repr = self.fromSafe(g(arg))
+    }
 }
 
 /**
@@ -172,58 +401,40 @@ object NBTType {
   type Obj[Repr]      = NBTType[Repr, NBTTag.Aux[Repr]]
   type CovarObj[Repr] = NBTType[Repr, _ <: NBTTag.Aux[Repr]]
 
-  class InferTypeFromRepr[Repr](val dummy: Unit) extends AnyVal {
-    def infer[NBT <: NBTTag.Aux[Repr]](implicit extract: NBTType[Repr, NBT]): NBTType[Repr, NBT] = extract
-  }
-
   def apply[Repr, NBT <: NBTTag.Aux[Repr]](implicit nbtType: NBTType[Repr, NBT]): NBTType[Repr, NBT] = nbtType
-  def forRepr[Repr]                                                                                  = new InferTypeFromRepr[Repr]
+
+  val TagEnd: NBTType[Nothing, NBTEnd]                                = TAG_End
+  implicit val TagByte: NBTType[Byte, NBTByte]                        = TAG_Byte
+  implicit val TagShort: NBTType[Short, NBTShort]                     = TAG_Short
+  implicit val TagInt: NBTType[Int, NBTInt]                           = TAG_Int
+  implicit val TagLong: NBTType[Long, NBTLong]                        = TAG_Long
+  implicit val TagFloat: NBTType[Float, NBTFloat]                     = TAG_Float
+  implicit val TagDouble: NBTType[Double, NBTDouble]                  = TAG_Double
+  implicit val TagByteArray: NBTType[IndexedSeq[Byte], NBTByteArray]  = TAG_Byte_Array
+  implicit val TagString: NBTType[String, NBTString]                  = TAG_String
+  implicit val TagCompound: NBTType[Map[String, NBTTag], NBTCompound] = TAG_Compound
+  implicit val TagIntArray: NBTType[IndexedSeq[Int], NBTIntArray]     = TAG_Int_Array
+  implicit val TagLongArray: NBTType[IndexedSeq[Long], NBTLongArray]  = TAG_Long_Array
 
   /**
     * Convert a numerical id to a [[NBTType]]
     */
   def fromId(i: Int): Option[NBTType.CovarObj[_]] = i match {
-    case 0  => Some(NBTView.TagEnd)
-    case 1  => Some(NBTView.TagByte)
-    case 2  => Some(NBTView.TagShort)
-    case 3  => Some(NBTView.TagInt)
-    case 4  => Some(NBTView.TagLong)
-    case 5  => Some(NBTView.TagFloat)
-    case 6  => Some(NBTView.TagDouble)
-    case 7  => Some(NBTView.TagByteArray)
-    case 8  => Some(NBTView.TagString)
+    case 0  => Some(TagEnd)
+    case 1  => Some(TagByte)
+    case 2  => Some(TagShort)
+    case 3  => Some(TagInt)
+    case 4  => Some(TagLong)
+    case 5  => Some(TagFloat)
+    case 6  => Some(TagDouble)
+    case 7  => Some(TagByteArray)
+    case 8  => Some(TagString)
     case 9  => Some(unsafe.TagList)
-    case 10 => Some(NBTView.TagCompound)
-    case 11 => Some(NBTView.TagIntArray)
-    case 12 => Some(NBTView.TagLongArray)
+    case 10 => Some(TagCompound)
+    case 11 => Some(TagIntArray)
+    case 12 => Some(TagLongArray)
     case _  => None
   }
-}
-
-//We allow creating new list types for type sake
-sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
-    val elementType: NBTType[ElementRepr, ElementNBT]
-) extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
-  override def id: Byte = 11
-
-  override def to(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
-    new NBTList[ElementRepr, ElementNBT](v)(this)
-}
-
-trait NBTTypeInstances extends NBTViewInstances {
-
-  val TagEnd: TAG_End.type              = TAG_End
-  val TagByte: TAG_Byte.type            = TAG_Byte
-  val TagShort: TAG_Short.type          = TAG_Short
-  val TagInt: TAG_Int.type              = TAG_Int
-  val TagLong: TAG_Long.type            = TAG_Long
-  val TagFloat: TAG_Float.type          = TAG_Float
-  val TagDouble: TAG_Double.type        = TAG_Double
-  val TagByteArray: TAG_Byte_Array.type = TAG_Byte_Array
-  val TagString: TAG_String.type        = TAG_String
-  val TagCompound: TAG_Compound.type    = TAG_Compound
-  val TagIntArray: TAG_Int_Array.type   = TAG_Int_Array
-  val TagLongArray: TAG_Long_Array.type = TAG_Long_Array
 
   private[typenbt] case object AnyTagType extends NBTType[Any, NBTTag.Aux[Any]] {
     override def id: Byte                    = throw new IllegalStateException("Tried to get ID for any tag")
@@ -237,57 +448,57 @@ trait NBTTypeInstances extends NBTViewInstances {
     override def from(arg: NBTEnd): Option[Nothing] = throw new IllegalStateException("Tried to deconstruct end tag")
   }
 
-  implicit case object TAG_Byte extends NBTType[Byte, NBTByte] {
+  case object TAG_Byte extends NBTType[Byte, NBTByte] {
     override def id: Byte             = 1
     override def to(v: Byte): NBTByte = NBTByte(v)
   }
 
-  implicit case object TAG_Short extends NBTType[Short, NBTShort] {
+  case object TAG_Short extends NBTType[Short, NBTShort] {
     override def id: Byte               = 2
     override def to(v: Short): NBTShort = NBTShort(v)
   }
 
-  implicit case object TAG_Int extends NBTType[Int, NBTInt] {
+  case object TAG_Int extends NBTType[Int, NBTInt] {
     override def id: Byte           = 3
     override def to(v: Int): NBTInt = NBTInt(v)
   }
 
-  implicit case object TAG_Long extends NBTType[Long, NBTLong] {
+  case object TAG_Long extends NBTType[Long, NBTLong] {
     override def id: Byte             = 4
     override def to(v: Long): NBTLong = NBTLong(v)
   }
 
-  implicit case object TAG_Float extends NBTType[Float, NBTFloat] {
+  case object TAG_Float extends NBTType[Float, NBTFloat] {
     override def id: Byte               = 5
     override def to(v: Float): NBTFloat = NBTFloat(v)
   }
 
-  implicit case object TAG_Double extends NBTType[Double, NBTDouble] {
+  case object TAG_Double extends NBTType[Double, NBTDouble] {
     override def id: Byte                 = 6
     override def to(v: Double): NBTDouble = NBTDouble(v)
   }
 
-  implicit case object TAG_Byte_Array extends NBTType[IndexedSeq[Byte], NBTByteArray] {
+  case object TAG_Byte_Array extends NBTType[IndexedSeq[Byte], NBTByteArray] {
     override def id: Byte                              = 7
     override def to(v: IndexedSeq[Byte]): NBTByteArray = NBTByteArray(v)
   }
 
-  implicit case object TAG_String extends NBTType[String, NBTString] {
+  case object TAG_String extends NBTType[String, NBTString] {
     override def id: Byte                 = 8
     override def to(v: String): NBTString = NBTString(v)
   }
 
-  implicit case object TAG_Compound extends NBTType[Map[String, NBTTag], NBTCompound] {
+  case object TAG_Compound extends NBTType[Map[String, NBTTag], NBTCompound] {
     override def id: Byte                                = 10
     override def to(v: Map[String, NBTTag]): NBTCompound = NBTCompound(v)
   }
 
-  implicit case object TAG_Int_Array extends NBTType[IndexedSeq[Int], NBTIntArray] {
+  case object TAG_Int_Array extends NBTType[IndexedSeq[Int], NBTIntArray] {
     override def id: Byte                            = 11
     override def to(v: IndexedSeq[Int]): NBTIntArray = NBTIntArray(v)
   }
 
-  implicit case object TAG_Long_Array extends NBTType[IndexedSeq[Long], NBTLongArray] {
+  case object TAG_Long_Array extends NBTType[IndexedSeq[Long], NBTLongArray] {
     override def id: Byte                              = 12
     override def to(v: IndexedSeq[Long]): NBTLongArray = NBTLongArray(v)
   }
@@ -298,43 +509,17 @@ trait NBTTypeInstances extends NBTViewInstances {
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
   //A raw list with no checks. If used wrong, this WILL cause problems
-  private[typenbt] case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](NBTView.AnyTagType)
+  private[typenbt] case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](AnyTagType)
 }
 
-trait NBTViewInstances extends LowPriorityViewInstances {
+//We allow creating new list types for type sake
+sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
+    val elementType: NBTType[ElementRepr, ElementNBT]
+) extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
+  override def id: Byte = 11
 
-  implicit val BooleanView: NBTBoolean.type = NBTBoolean
-  implicit val UUIDView: NBTUUID.type       = NBTUUID
-
-  implicit def mapView[ElemRepr, ElemNBT <: NBTTag](
-      implicit view: NBTView[ElemRepr, ElemNBT],
-      typeable: Typeable[ElemNBT]
-  ): SafeNBTView[Map[String, ElemRepr], NBTCompound] =
-    new SafeNBTView[Map[String, ElemRepr], NBTCompound] {
-      override def to(v: Map[String, ElemRepr]): NBTCompound = {
-        val mapped = v.mapValues(view.to)
-        NBTCompound(mapped)
-      }
-
-      override def fromSafe(arg: NBTCompound): Map[String, ElemRepr] =
-        for {
-          (str, nbt) <- arg.value
-          typed      <- typeable.cast(nbt).toSeq
-          mapped     <- view.from(typed).toSeq
-        } yield str -> mapped
-    }
-}
-
-trait LowPriorityViewInstances {
-
-  implicit def seqView[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
-      implicit view: NBTView[SeqRepr, ListNBT],
-      listType: NBTListType[ListNBTRepr, ListNBT]
-  ): SafeNBTView[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
-    new SafeNBTView[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] {
-      override def to(v: Seq[SeqRepr]): NBTList[ListNBTRepr, ListNBT]         = NBTList[ListNBTRepr, ListNBT](v.map(view.to))
-      override def fromSafe(arg: NBTList[ListNBTRepr, ListNBT]): Seq[SeqRepr] = arg.value.flatMap(view.from)
-    }
+  override def to(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
+    new NBTList[ElementRepr, ElementNBT](v)(this)
 }
 
 trait NBTViewCaseCreator {
@@ -344,9 +529,9 @@ trait NBTViewCaseCreator {
     override def fromSafe(arg: NBTCompound): HNil = HNil
   }
 
-  implicit val cNilView: NBTView[CNil, NBTCompound] = new NBTView[CNil, NBTCompound] {
-    override def to(v: CNil): NBTCompound             = v.impossible
-    override def from(arg: NBTCompound): Option[CNil] = sys.error("cnil")
+  implicit val cNilView: SafeNBTView[CNil, NBTCompound] = new SafeNBTView[CNil, NBTCompound] {
+    override def to(v: CNil): NBTCompound         = v.impossible
+    override def fromSafe(arg: NBTCompound): CNil = sys.error("cnil")
   }
 
   //FIXME: HeadNBT is problematic as Lazy does not work with multiple type parameters

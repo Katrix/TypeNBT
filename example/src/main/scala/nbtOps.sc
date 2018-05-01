@@ -12,5 +12,3 @@ byteNbt.set(true)
 
 nbt.modify(_.toString)
 byteNbt.modify(_.toString)
-
-NBTView.forRepr[Map[String, String]].infer

@@ -32,47 +32,47 @@ class CorrectViewTest extends FunSuite with Matchers {
     def apply[Repr](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
   }
 
-  test("The view for NBTByte should be NBTView.TagByte") {
-    assert(getView[NBTByte].apply === NBTView.TagByte)
+  test("The view for NBTByte should be NBTType.TagByte") {
+    assert(getView[NBTByte].apply === NBTType.TagByte)
   }
 
-  test("The view for NBTShort should be NBTView.TagShort") {
-    assert(getView[NBTShort].apply === NBTView.TagShort)
+  test("The view for NBTShort should be NBTType.TagShort") {
+    assert(getView[NBTShort].apply === NBTType.TagShort)
   }
 
-  test("The view for NBTInt should be NBTView.TagInt") {
-    assert(getView[NBTInt].apply === NBTView.TagInt)
+  test("The view for NBTInt should be NBTType.TagInt") {
+    assert(getView[NBTInt].apply === NBTType.TagInt)
   }
 
-  test("The view for NBTLong should be NBTView.TagLong") {
-    assert(getView[NBTLong].apply === NBTView.TagLong)
+  test("The view for NBTLong should be NBTType.TagLong") {
+    assert(getView[NBTLong].apply === NBTType.TagLong)
   }
 
-  test("The view for NBTFloat should be NBTView.TagFloat") {
-    assert(getView[NBTFloat].apply === NBTView.TagFloat)
+  test("The view for NBTFloat should be NBTType.TagFloat") {
+    assert(getView[NBTFloat].apply === NBTType.TagFloat)
   }
 
-  test("The view for NBTDouble should be NBTView.TagDouble") {
-    assert(getView[NBTDouble].apply === NBTView.TagDouble)
+  test("The view for NBTDouble should be NBTType.TagDouble") {
+    assert(getView[NBTDouble].apply === NBTType.TagDouble)
   }
 
-  test("The view for NBTByteArray should be NBTView.TagByteArray") {
-    assert(getView[NBTByteArray].apply === NBTView.TagByteArray)
+  test("The view for NBTByteArray should be NBTType.TagByteArray") {
+    assert(getView[NBTByteArray].apply === NBTType.TagByteArray)
   }
 
-  test("The view for NBTString should be NBTView.TagString") {
-    assert(getView[NBTString].apply === NBTView.TagString)
+  test("The view for NBTString should be NBTType.TagString") {
+    assert(getView[NBTString].apply === NBTType.TagString)
   }
 
-  test("The view for NBTCompound should be NBTView.TagCompound") {
-    assert(getView[NBTCompound].apply === NBTView.TagCompound)
+  test("The view for NBTCompound should be NBTType.TagCompound") {
+    assert(getView[NBTCompound].apply === NBTType.TagCompound)
   }
 
-  test("The view for NBTIntArray should be NBTView.TagIntArray") {
-    assert(getView[NBTIntArray].apply === NBTView.TagIntArray)
+  test("The view for NBTIntArray should be NBTType.TagIntArray") {
+    assert(getView[NBTIntArray].apply === NBTType.TagIntArray)
   }
 
-  test("The view for NBTLongArray should be NBTView.TagLongArray") {
-    assert(getView[NBTLongArray].apply === NBTView.TagLongArray)
+  test("The view for NBTLongArray should be NBTType.TagLongArray") {
+    assert(getView[NBTLongArray].apply === NBTType.TagLongArray)
   }
 }

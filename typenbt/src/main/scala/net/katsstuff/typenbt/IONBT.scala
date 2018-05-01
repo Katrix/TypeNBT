@@ -69,7 +69,7 @@ object IONBT {
     )
 
     val ret = readType(newStream).flatMap {
-      case tpe if tpe == NBTView.TagCompound =>
+      case tpe if tpe == NBTType.TagCompound =>
         for {
           name <- readString(newStream)
           tag  <- readCompound(newStream, NBTCompound())
@@ -167,7 +167,7 @@ object IONBT {
   private def readCompound(stream: DataInputStream, compound: NBTCompound): Try[NBTCompound] = {
     //We match to be tail recursive
     readType(stream) match {
-      case Success(nbtType) if nbtType == NBTView.TagEnd => Success(compound)
+      case Success(nbtType) if nbtType == NBTType.TagEnd => Success(compound)
       case Success(nbtType) =>
         readString(stream) match {
           case Success(name) =>
@@ -236,19 +236,19 @@ object IONBT {
 
   private def readTag[A](stream: DataInputStream, nbtType: NBTType.CovarObj[A]): Try[NBTTag.Aux[A]] =
     nbtType match {
-      case NBTView.TagByte      => Try(NBTByte(stream.readByte()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagShort     => Try(NBTShort(stream.readShort()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagInt       => Try(NBTInt(stream.readInt()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagLong      => Try(NBTLong(stream.readLong()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagFloat     => Try(NBTFloat(stream.readFloat()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagDouble    => Try(NBTDouble(stream.readDouble()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagString    => readString(stream).map(s => NBTString(s).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagByte      => Try(NBTByte(stream.readByte()).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagShort     => Try(NBTShort(stream.readShort()).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagInt       => Try(NBTInt(stream.readInt()).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagLong      => Try(NBTLong(stream.readLong()).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagFloat     => Try(NBTFloat(stream.readFloat()).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagDouble    => Try(NBTDouble(stream.readDouble()).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagString    => readString(stream).map(s => NBTString(s).asInstanceOf[NBTTag.Aux[A]])
       case unsafe.TagList       => readList(stream).asInstanceOf[Try[NBTTag.Aux[A]]]
-      case NBTView.TagCompound  => readCompound(stream, NBTCompound()).asInstanceOf[Try[NBTTag.Aux[A]]]
-      case NBTView.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a).asInstanceOf[NBTTag.Aux[A]])
-      case NBTView.TagEnd       => Failure(new IOException("Unexpected end tag"))
+      case NBTType.TagCompound  => readCompound(stream, NBTCompound()).asInstanceOf[Try[NBTTag.Aux[A]]]
+      case NBTType.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagEnd       => Failure(new IOException("Unexpected end tag"))
       case _                    => Failure(new IOException("Unexpected tag type"))
     }
 }
