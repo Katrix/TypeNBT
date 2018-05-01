@@ -132,23 +132,30 @@ trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] {
     new SafeExtendedNBTView(this, f, fInverse)
 }
 
-class ExtendedNBTView[NewRepr, Repr, NBT <: NBTTag](
+class ExtendedNBTView[ExtendRepr, Repr, NBT <: NBTTag](
     underlying: NBTView[Repr, NBT],
-    f: Repr => Option[NewRepr],
-    fInverse: NewRepr => Repr
-) extends NBTView[NewRepr, NBT] {
+    f: Repr => Option[ExtendRepr],
+    fInverse: ExtendRepr => Repr
+) extends NBTView[ExtendRepr, NBT] {
 
-  override def to(v: NewRepr): NBT             = underlying.to(fInverse(v))
-  override def from(arg: NBT): Option[NewRepr] = underlying.from(arg).flatMap(f)
+  override def to(v: ExtendRepr): NBT             = underlying.to(fInverse(v))
+  override def from(arg: NBT): Option[ExtendRepr] = underlying.from(arg).flatMap(f)
+  override def extend[NewRepr](g: ExtendRepr => Option[NewRepr], gInverse: NewRepr => ExtendRepr): NBTView[NewRepr, NBT] =
+    new ExtendedNBTView[NewRepr, Repr, NBT](underlying, f.andThen(_.flatMap(g)), fInverse.compose(gInverse))
 }
 
-class SafeExtendedNBTView[NewRepr, Repr, NBT <: NBTTag](
+class SafeExtendedNBTView[ExtendRepr, Repr, NBT <: NBTTag](
     underlying: SafeNBTView[Repr, NBT],
-    f: Repr => NewRepr,
-    fInverse: NewRepr => Repr
-) extends SafeNBTView[NewRepr, NBT] {
-  override def fromSafe(arg: NBT): NewRepr = f(underlying.fromSafe(arg))
-  override def to(v: NewRepr): NBT         = underlying.to(fInverse(v))
+    f: Repr => ExtendRepr,
+    fInverse: ExtendRepr => Repr
+) extends SafeNBTView[ExtendRepr, NBT] {
+  override def fromSafe(arg: NBT): ExtendRepr = f(underlying.fromSafe(arg))
+  override def to(v: ExtendRepr): NBT         = underlying.to(fInverse(v))
+
+  override def extend[NewRepr](g: ExtendRepr => Option[NewRepr], gInverse: NewRepr => ExtendRepr): NBTView[NewRepr, NBT] =
+    new ExtendedNBTView[NewRepr, Repr, NBT](underlying, f.andThen(g), fInverse.compose(gInverse))
+  override def safeExtend[NewRepr](g: ExtendRepr => NewRepr, gInverse: NewRepr => ExtendRepr): SafeNBTView[NewRepr, NBT] =
+    new SafeExtendedNBTView[NewRepr, Repr, NBT](underlying, f.andThen(g), fInverse.compose(gInverse))
 }
 
 /**
@@ -342,7 +349,7 @@ trait NBTViewCaseCreator {
     override def from(arg: NBTCompound): Option[CNil] = sys.error("cnil")
   }
 
-  //FIXME: HeadNBT is problematic
+  //FIXME: HeadNBT is problematic as Lazy does not work with multiple type parameters
   implicit def hConsView[Name <: Symbol, Head, Tail <: HList, HeadNBT <: NBTTag](
       implicit name: Witness.Aux[Name],
       vh: Lazy[NBTView[Head, HeadNBT]],
@@ -360,7 +367,7 @@ trait NBTViewCaseCreator {
       } yield labelled.field[Name](head) :: tail
   }
 
-  //FIXME: LeftNBT is probably problematic
+  //FIXME: LeftNBT is problematic as Lazy does not work with multiple type parameters
   implicit def coProdView[Name <: Symbol, Left, Right <: Coproduct, LeftNBT <: NBTTag](
       implicit name: Witness.Aux[Name],
       vl: Lazy[NBTView[Left, LeftNBT]],
