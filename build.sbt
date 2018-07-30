@@ -43,14 +43,6 @@ lazy val noPublishSettings = Seq(
   publishArtifact := false,
 )
 
-lazy val rootTypeNBT = project
-  .in(file("."))
-  .aggregate(typenbtJVM, typenbtJS)
-  .settings(
-    commonSettings,
-    noPublishSettings
-  )
-
 lazy val typenbt = crossProject
   .crossType(CrossType.Pure)
   .settings(
@@ -82,3 +74,11 @@ lazy val typenbtMojangsonJVM = typenbtMojangson.jvm
 lazy val typenbtMojangsonJS  = typenbtMojangson.js
 
 lazy val example = project.dependsOn(typenbtJVM, typenbtMojangsonJVM).settings(commonSettings, name := "examples")
+
+lazy val rootTypeNBT = project
+  .in(file("."))
+  .aggregate(typenbtJVM, typenbtJS, typenbtMojangsonJVM, typenbtMojangsonJS)
+  .settings(
+    commonSettings,
+    noPublishSettings
+  )
