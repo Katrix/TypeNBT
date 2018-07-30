@@ -24,9 +24,6 @@ import java.util.UUID
 
 import scala.language.{existentials, higherKinds}
 
-import shapeless._
-import shapeless.labelled.FieldType
-
 /**
   * A typeclass responsible for serializing values into NBT.
   * @tparam Repr The type it serializes.
@@ -155,19 +152,6 @@ object NBTDeserializer extends LowPriorityNBTDeserializers {
 trait LowPriorityNBTDeserializers extends ExtraLowPriorityNBTDeserializers {
   implicit val BooleanView: NBTDeserializer[Boolean, NBTByte] = NBTBoolean
   implicit val UUIDView: NBTDeserializer[UUID, NBTCompound]   = NBTUUID
-
-  implicit def mapDeser[ElemRepr, ElemNBT <: NBTTag](
-      implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
-      typeable: Typeable[ElemNBT]
-  ): NBTDeserializer[Map[String, ElemRepr], NBTCompound] =
-    (arg: NBTCompound) =>
-      Some(
-        for {
-          (str, nbt) <- arg.value
-          typed      <- typeable.cast(nbt).toSeq
-          mapped     <- deser.from(typed).toSeq
-        } yield str -> mapped
-    )
 }
 
 trait ExtraLowPriorityNBTDeserializers {
@@ -215,17 +199,6 @@ object SafeNBTDeserializer extends LowPrioritySafeNBTDeserializers {
 }
 trait LowPrioritySafeNBTDeserializers extends ExtraLowPrioritySafeNBTDeserializers {
   implicit val BooleanView: SafeNBTDeserializer[Boolean, NBTByte] = NBTBoolean
-
-  implicit def mapSafeDeser[ElemRepr, ElemNBT <: NBTTag](
-      implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
-      typeable: Typeable[ElemNBT]
-  ): SafeNBTDeserializer[Map[String, ElemRepr], NBTCompound] =
-    (arg: NBTCompound) =>
-      for {
-        (str, nbt) <- arg.value
-        typed      <- typeable.cast(nbt).toSeq
-        mapped     <- deser.from(typed).toSeq
-      } yield str -> mapped
 }
 trait ExtraLowPrioritySafeNBTDeserializers {
 
@@ -520,63 +493,4 @@ sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 
   override def to(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
     new NBTList[ElementRepr, ElementNBT](v)(this)
-}
-
-trait NBTViewCaseCreator {
-
-  implicit val hNilView: SafeNBTView[HNil, NBTCompound] = new SafeNBTView[HNil, NBTCompound] {
-    override def to(v: HNil): NBTCompound         = NBTCompound()
-    override def fromSafe(arg: NBTCompound): HNil = HNil
-  }
-
-  implicit val cNilView: SafeNBTView[CNil, NBTCompound] = new SafeNBTView[CNil, NBTCompound] {
-    override def to(v: CNil): NBTCompound         = v.impossible
-    override def fromSafe(arg: NBTCompound): CNil = sys.error("cnil")
-  }
-
-  //FIXME: HeadNBT is problematic as Lazy does not work with multiple type parameters
-  implicit def hConsView[Name <: Symbol, Head, Tail <: HList, HeadNBT <: NBTTag](
-      implicit name: Witness.Aux[Name],
-      vh: Lazy[NBTView[Head, HeadNBT]],
-      vt: Lazy[NBTView[Tail, NBTCompound]],
-      tpe: Typeable[HeadNBT]
-  ): NBTView[FieldType[Name, Head] :: Tail, NBTCompound] = new NBTView[FieldType[Name, Head] :: Tail, NBTCompound] {
-
-    override def to(v: FieldType[Name, Head] :: Tail): NBTCompound =
-      vt.value.to(v.tail).set(name.value.name, vh.value.to(v.head))
-
-    override def from(arg: NBTCompound): Option[FieldType[Name, Head] :: Tail] =
-      for {
-        head <- arg.get(name.value.name).flatMap(tpe.cast(_).flatMap(vh.value.from))
-        tail <- vt.value.from(arg)
-      } yield labelled.field[Name](head) :: tail
-  }
-
-  //FIXME: LeftNBT is problematic as Lazy does not work with multiple type parameters
-  implicit def coProdView[Name <: Symbol, Left, Right <: Coproduct, LeftNBT <: NBTTag](
-      implicit name: Witness.Aux[Name],
-      vl: Lazy[NBTView[Left, LeftNBT]],
-      vr: Lazy[NBTView[Right, NBTCompound]],
-      tpe: Typeable[LeftNBT]
-  ): NBTView[FieldType[Name, Left] :+: Right, NBTCompound] = new NBTView[FieldType[Name, Left] :+: Right, NBTCompound] {
-
-    override def to(v: FieldType[Name, Left] :+: Right): NBTCompound = v match {
-      case Inl(l) => NBTCompound(Map(name.value.name -> vl.value.to(l)))
-      case Inr(r) => vr.value.to(r)
-    }
-
-    override def from(arg: NBTCompound): Option[FieldType[Name, Left] :+: Right] =
-      arg.get(name.value.name) match {
-        case Some(tag) => tpe.cast(tag).flatMap(vl.value.from(_).map(l => Inl(labelled.field[Name](l))))
-        case None      => vr.value.from(arg).map(Inr(_))
-      }
-  }
-
-  implicit def caseToView[A, HList](
-      implicit gen: LabelledGeneric.Aux[A, HList],
-      ser: Lazy[NBTView[HList, NBTCompound]]
-  ): NBTView[A, NBTCompound] = new NBTView[A, NBTCompound] {
-    override def to(v: A): NBTCompound             = ser.value.to(gen.to(v))
-    override def from(arg: NBTCompound): Option[A] = ser.value.from(arg).map(gen.from)
-  }
 }

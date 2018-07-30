@@ -1,6 +1,7 @@
 import java.util.UUID
 
 import net.katsstuff.typenbt._
+import net.katsstuff.typenbt.extra._
 
 val compound = NBTCompound(
   Map("Hi" -> 2.nbt, "There" -> "Nope".nbt, "Nested" -> NBTCompound(Map("InNested" -> false.nbt)))

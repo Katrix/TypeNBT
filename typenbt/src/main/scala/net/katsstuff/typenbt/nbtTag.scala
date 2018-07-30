@@ -24,9 +24,6 @@ import java.util.UUID
 
 import scala.annotation.tailrec
 
-import shapeless.ops.hlist.{Mapper, ToTraversable}
-import shapeless.{HList, Poly1, Typeable}
-
 sealed trait NBTTag {
 
   /**
@@ -173,16 +170,6 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   def +(tuple: NamedTag): NBTCompound = NBTCompound(value + tuple)
 
   /**
-    * Creates a new [[NBTCompound]] with the hlist appended.
-    * If there exists duplicate values it uses the second one.
-    */
-  def ++[Input <: HList, Mapped <: HList, Traversed](hList: Input)(
-      implicit mapper: Mapper.Aux[NBTCompound.tupleToNBT.type, Input, Mapped],
-      toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-      evidence: Traversed <:< NamedTag
-  ): NBTCompound = this.merge(NBTCompound.fromHList(hList))
-
-  /**
 		* Creates a new [[NBTCompound]] with the key-value pair appended.
 		*/
   def update(key: String, tag: NBTTag): NBTCompound = NBTCompound(value.updated(key, tag))
@@ -236,12 +223,6 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   def get(key: String): Option[NBTTag] = value.get(key)
 
   /**
-		* Gets a value from this if it exists at the specified key,
-		* and it can be converted to the specified value.
-		*/
-  def getValue[Repr] = new NBTCompound.GetValue[Repr](this)
-
-  /**
 		* Tries to get an [[java.util.UUID]] created with [[setUUID]].
 		*/
   def getUUID(key: String): Option[UUID] =
@@ -270,13 +251,6 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
         case _                           => None
       }
   }
-
-  /**
-		* Same as [[getNested]], but with a value instead of a [[NBTTag]].
-		*
-		* @see [[getNested]]
-		*/
-  def getNestedValue[Repr] = new NBTCompound.GetRecursiveValue[Repr](this)
 
   /**
 		* Tries to merge this [[NBTCompound]] with another.
@@ -338,38 +312,6 @@ object NBTCompound {
 
   def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit serializer: NBTSerializer[Repr, NBT]): NBTCompound =
     new NBTCompound(map.mapValues(serializer.to))
-
-  object tupleToNBT extends Poly1 {
-    implicit def apply[Repr, NBT <: NBTTag](implicit serializer: NBTSerializer[Repr, NBT]) =
-      at[(String, Repr)] { case (name, value) => name -> serializer.to(value) }
-  }
-
-  def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
-      implicit mapper: Mapper.Aux[tupleToNBT.type, Input, Mapped],
-      toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-      evidence: Traversed <:< NamedTag
-  ) = NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
-
-  class GetValue[Repr](private val compound: NBTCompound) extends AnyVal {
-    def apply[NBT <: NBTTag](
-        key: String
-    )(implicit deserializer: NBTDeserializer[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
-      compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(deserializer.from))
-  }
-
-  class GetRecursiveValue[Repr](private val compound: NBTCompound) extends AnyVal {
-    def apply[NBT <: NBTTag](
-        keys: String*
-    )(implicit deserializer: NBTDeserializer[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
-      val tail = keys.tail
-      if (tail == Nil) compound.getValue[Repr](keys.head)
-      else
-        compound.get(keys.head) match {
-          case Some(compound: NBTCompound) => compound.getNestedValue[Repr](tail: _*)
-          case _                           => None
-        }
-    }
-  }
 }
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {

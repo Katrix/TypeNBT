@@ -1,9 +1,8 @@
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
-  version := "0.4-SNAPSHOT",
+  version := "0.4.0-SNAPSHOT",
   scalaVersion := "2.12.6",
-  crossScalaVersions := Seq("2.11.11", "2.12.6"),
-  libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.3",
+  crossScalaVersions := Seq("2.11.11", "2.12.6")
 )
 
 lazy val publishSettigs = Seq(
@@ -53,6 +52,17 @@ lazy val typenbt = crossProject
     description := "TypeNBT is a NBT library that let's the user focus on the data, not how it's represented",
   )
 
+lazy val typenbtExtra = crossProject
+  .crossType(CrossType.Pure)
+  .dependsOn(typenbt)
+  .settings(
+    commonSettings,
+    publishSettigs,
+    name := "typenbt-extra",
+    description := "A module for TypeNBT which offers extra functionality using Shapeless",
+    libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.3"
+  )
+
 lazy val typenbtMojangson = crossProject
   .crossType(CrossType.Pure)
   .dependsOn(typenbt)
@@ -70,14 +80,18 @@ lazy val typenbtMojangson = crossProject
 lazy val typenbtJVM = typenbt.jvm
 lazy val typenbtJS  = typenbt.js
 
+lazy val typenbtExtraJVM = typenbtExtra.jvm
+lazy val typenbtExtraJS  = typenbtExtra.js
+
 lazy val typenbtMojangsonJVM = typenbtMojangson.jvm
 lazy val typenbtMojangsonJS  = typenbtMojangson.js
 
-lazy val example = project.dependsOn(typenbtJVM, typenbtMojangsonJVM).settings(commonSettings, name := "examples")
+lazy val example =
+  project.dependsOn(typenbtJVM, typenbtExtraJVM, typenbtMojangsonJVM).settings(commonSettings, name := "examples")
 
 lazy val rootTypeNBT = project
   .in(file("."))
-  .aggregate(typenbtJVM, typenbtJS, typenbtMojangsonJVM, typenbtMojangsonJS)
+  .aggregate(typenbtJVM, typenbtJS, typenbtExtraJVM, typenbtExtraJS, typenbtMojangsonJVM, typenbtMojangsonJS)
   .settings(
     commonSettings,
     noPublishSettings
