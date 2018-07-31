@@ -57,6 +57,12 @@ object NBTSerializer extends LowPriorityNBTSerializers {
     def set[Repr](repr: Repr)(implicit ser: NBTSerializer[Repr, NBT]): NBT = ser.to(repr)
   }
 
+  def forRepr[Repr] = new SerializerForRepr[Repr]
+
+  class SerializerForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit ser: NBTSerializer[Repr, NBT]): NBTSerializer[Repr, NBT] = ser
+  }
+
   val TagEnd: NBTSerializer[Nothing, NBTEnd]                                = NBTType.TAG_End
   implicit val TagByte: NBTSerializer[Byte, NBTByte]                        = NBTType.TAG_Byte
   implicit val TagShort: NBTSerializer[Short, NBTShort]                     = NBTType.TAG_Short
@@ -132,6 +138,12 @@ object NBTDeserializer extends LowPriorityNBTDeserializers {
     def as[Repr](implicit deser: NBTDeserializer[Repr, NBT]): Option[Repr] = deser.from(nbt)
   }
 
+  def forRepr[Repr] = new DeserializerForRepr[Repr]
+
+  class DeserializerForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit deser: NBTDeserializer[Repr, NBT]): NBTDeserializer[Repr, NBT] = deser
+  }
+
   val TagEnd: NBTDeserializer[Nothing, NBTEnd]                                = NBTType.TAG_End
   implicit val TagByte: NBTDeserializer[Byte, NBTByte]                        = NBTType.TAG_Byte
   implicit val TagShort: NBTDeserializer[Short, NBTShort]                     = NBTType.TAG_Short
@@ -178,6 +190,13 @@ object SafeNBTDeserializer extends LowPrioritySafeNBTDeserializers {
 
   class NBTOps[NBT <: NBTTag](private val nbt: NBT) extends AnyVal {
     def safeAs[Repr](implicit safeDeser: SafeNBTDeserializer[Repr, NBT]): Repr = safeDeser.fromSafe(nbt)
+  }
+
+  def forRepr[Repr] = new SafeDeserializerForRepr[Repr]
+
+  class SafeDeserializerForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit safeDeser: SafeNBTDeserializer[Repr, NBT]): SafeNBTDeserializer[Repr, NBT] =
+      safeDeser
   }
 
   val TagEnd: SafeNBTDeserializer[Nothing, NBTEnd]                                = NBTType.TAG_End
@@ -255,6 +274,12 @@ object NBTView extends LowPriorityNBTViews {
 
   def apply[Repr, NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
 
+  def forRepr[Repr] = new ViewForRepr[Repr]
+
+  class ViewForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit view: NBTView[Repr, NBT]): NBTView[Repr, NBT] = view
+  }
+
   val TagEnd: NBTView[Nothing, NBTEnd]                                = NBTType.TAG_End
   implicit val TagByte: NBTView[Byte, NBTByte]                        = NBTType.TAG_Byte
   implicit val TagShort: NBTView[Short, NBTShort]                     = NBTType.TAG_Short
@@ -311,6 +336,19 @@ trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] { self =>
       override def from(arg: NewNBT): Option[Repr] = self.from(g(arg))
     }
 }
+object NBTViewCaseLike {
+  def fromView[Repr, NBT <: NBTTag](view: NBTView[Repr, NBT]): NBTViewCaseLike[Repr, NBT] =
+    new NBTViewCaseLike[Repr, NBT] {
+      override def to(v: Repr): NBT             = view.to(v)
+      override def from(arg: NBT): Option[Repr] = view.from(arg)
+    }
+
+  def forRepr[Repr] = new CaseViewForRepr[Repr]
+
+  class CaseViewForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit view: NBTViewCaseLike[Repr, NBT]): NBTViewCaseLike[Repr, NBT] = view
+  }
+}
 
 /**
   * A safer type of NBTView where [[NBTView.from]] can't fail.
@@ -341,6 +379,14 @@ trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] with SafeNBTDe
       override def fromSafe(arg: NewNBT): Repr = self.fromSafe(g(arg))
     }
 }
+object SafeNBTView {
+
+  def forRepr[Repr] = new SafeViewForRepr[Repr]
+
+  class SafeViewForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit view: SafeNBTView[Repr, NBT]): SafeNBTView[Repr, NBT] = view
+  }
+}
 
 /**
   * A safe variant of the case like mixin.
@@ -358,6 +404,20 @@ trait SafeNBTViewCaseLike[Repr, NBT <: NBTTag] extends SafeNBTView[Repr, NBT] wi
       override def to(v: Repr): NewNBT         = f(self.to(v))
       override def fromSafe(arg: NewNBT): Repr = self.fromSafe(g(arg))
     }
+}
+object SafeNBTViewCaseLike {
+
+  def fromView[Repr, NBT <: NBTTag](view: SafeNBTView[Repr, NBT]): SafeNBTViewCaseLike[Repr, NBT] =
+    new SafeNBTViewCaseLike[Repr, NBT] {
+      override def to(v: Repr): NBT         = view.to(v)
+      override def fromSafe(arg: NBT): Repr = view.fromSafe(arg)
+    }
+
+  def forRepr[Repr] = new SafeCaseViewForRepr[Repr]
+
+  class SafeCaseViewForRepr[Repr](private val dummy: Boolean = false) extends AnyVal {
+    def find[NBT <: NBTTag](implicit view: SafeNBTViewCaseLike[Repr, NBT]): SafeNBTViewCaseLike[Repr, NBT] = view
+  }
 }
 
 /**
@@ -493,4 +553,14 @@ sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 
   override def to(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
     new NBTList[ElementRepr, ElementNBT](v)(this)
+
+  override def equals(other: Any): Boolean = other match {
+    case that: NBTListType[_, _] => elementType == that.elementType
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(elementType)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
