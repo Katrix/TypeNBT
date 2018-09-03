@@ -549,7 +549,7 @@ object NBTType {
 sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
     val elementType: NBTType[ElementRepr, ElementNBT]
 ) extends NBTType[Seq[ElementNBT], NBTList[ElementRepr, ElementNBT]] {
-  override def id: Byte = 11
+  override def id: Byte = 9
 
   override def to(v: Seq[ElementNBT]): NBTList[ElementRepr, ElementNBT] =
     new NBTList[ElementRepr, ElementNBT](v)(this)
