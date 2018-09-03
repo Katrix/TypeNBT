@@ -310,6 +310,8 @@ object NBTCompound {
 
   type NamedTag = (String, NBTTag)
 
+  def apply(values: (String, NBTTag)*): NBTCompound = NBTCompound(values.toMap)
+
   def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit serializer: NBTSerializer[Repr, NBT]): NBTCompound =
     new NBTCompound(map.mapValues(serializer.to))
 }
