@@ -20,84 +20,79 @@
  */
 package net.katsstuff.typenbt
 
-import scala.util.matching.Regex
-
-import fastparse.WhitespaceApi
-import fastparse.core.{Mutable, ParseCtx}
-import fastparse.noApi._
+import fastparse._
+import fastparse.MultiLineWhitespace._
 
 object Mojangson {
 
   /**
 		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
 		*/
-  def deserialize(mojangson: String): Parsed[NBTCompound] = MojangsonParser.wholeNbt.parse(mojangson)
+  def deserialize(mojangson: String): Parsed[NBTCompound] = parse(mojangson, MojangsonParser.wholeNbt(_))
 
   object MojangsonParser {
-
-    private case class RegexParser(regex: Regex)
-        extends fastparse.core.Parser[Unit, Char, String]()(fastparse.StringReprOps) /*ambiguous implicit*/ {
-      override def parseRec(cfg: ParseCtx[Char, String], index: Int): Mutable[Unit, Char, String] =
-        regex.findPrefixOf(cfg.input.slice(index, 9999999)) match {
-          case Some(parsed) => success(cfg.success, (), index + reprOps.length(parsed), Set.empty, cut = false)
-          case None         => fail(cfg.failure, index)
-        }
-    }
-
-    val White: WhitespaceApi.Wrapper = WhitespaceApi.Wrapper {
-      import fastparse.all._
-      NoTrace(CharPred(Character.isWhitespace).rep)
-    }
-
-    import White._
 
     type NamedTag   = (String, NBTTag)
     type IndexedTag = (Int, NBTTag)
 
-    val stringLiteral: Parser[String] =
-      P(RegexParser("""\"(\\.|[^\\"])*\"""".r)).!.map(_.replace("\\\"", "\"").replace("\\\\", "\\"))
-        .opaque("String literal")
-    val floatingPoint: Parser[Double] =
-      P(RegexParser("""[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?""".r)).!.map(_.toDouble).opaque("Floating point number")
-    val wholeNumber: Parser[Long] = P("-".? ~ CharIn('0' to '9').rep(1)).!.map(_.toLong).opaque("Whole number")
+    def numbers[_: P]: P[Unit] = CharsWhileIn("0-9", min = 1)
 
-    val colon: Parser[Unit]     = P(":")
-    val comma: Parser[Unit]     = P(",")
-    val tagName: Parser[String] = P(CharsWhile(c => !":{}[]".contains(c)).!).opaque("Tag name") //Better way?
-    val tagIndex: Parser[Int]   = P(CharIn('0' to '9').rep(1).!).map(_.toInt).opaque("Tag index")
+    // Represents the regex \"(\\.|[^\\"])*\"
+    def stringLiteral[_: P]: P[String] =
+      P("\"" ~ (("\\" ~ AnyChar) | CharPred(c => c != '\\' && c != '"')).rep ~ "\"").!.map(
+        _.replace("\\\"", "\"").replace("\\\\", "\\")
+      ).opaque("String literal")
 
-    val compoundStart: Parser[Unit] = P("{").opaque("Compound start")
-    val compoundEnd: Parser[Unit]   = P("}").opaque("Compound end")
-    val listStart: Parser[Unit]     = P("[").opaque("List start")
-    val listEnd: Parser[Unit]       = P("]").opaque("List end")
+    // Represents the regex [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?
+    def floatingPoint[_: P]: P[Double] =
+      P(
+        CharIn("+\\-").? ~ CharsWhileIn("0-9") ~ ".".? ~ CharsWhileIn("0-9", min = 1) ~ (CharIn("eE") ~ CharIn("+\\-").? ~ CharsWhileIn(
+          "0-9",
+          min = 1
+        )).?
+      ).!.map(_.toDouble).opaque("Floating point number")
 
-    val byteEnd: Parser[Unit]   = P("b").opaque("Byte end")
-    val shortEnd: Parser[Unit]  = P("s").opaque("Short end")
-    val longEnd: Parser[Unit]   = P("L").opaque("Long end")
-    val floatEnd: Parser[Unit]  = P(CharIn("fF")).opaque("Float end")
-    val doubleEnd: Parser[Unit] = P(CharIn("dD")).opaque("Double end")
+    def wholeNumber[_: P]: P[Long] = P("-".? ~ CharsWhileIn("0-9", min = 1)).!.map(_.toLong).opaque("Whole number")
 
-    val nbtByte: Parser[NBTByte]     = P(wholeNumber ~ byteEnd).map(n => NBTByte(n.toByte))
-    val nbtShort: Parser[NBTShort]   = P(wholeNumber ~ shortEnd).map(n => NBTShort(n.toShort))
-    val nbtLong: Parser[NBTLong]     = P(wholeNumber ~ longEnd).map(n => NBTLong(n))
-    val nbtFloat: Parser[NBTFloat]   = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
-    val nbtDouble: Parser[NBTDouble] = P(floatingPoint ~ doubleEnd).map(n => NBTDouble(n))
-    val nbtInt: Parser[NBTInt]       = wholeNumber.map(n => NBTInt(n.toInt))
+    def colon[_: P]: P[Unit] = P(":")
 
-    val nbtNumber: Parser[NBTTag]    = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
-    val nbtString: Parser[NBTString] = stringLiteral.map(s => NBTString(s.substring(1, s.length - 1)))
+    def colon[_: P]: P[Unit]     = P(":")
+    def comma[_: P]: P[Unit]     = P(",")
+    def tagName[_: P]: P[String] = P(CharsWhile(c => !":{}[]".contains(c))).!.opaque("Tag name") //Better way?
+    def tagIndex[_: P]: P[Int]   = P(CharsWhileIn("0-9", min = 1)).!.map(_.toInt).opaque("Tag index")
+
+    def compoundStart[_: P]: P[Unit] = P("{").opaque("Compound start")
+    def compoundEnd[_: P]: P[Unit]   = P("}").opaque("Compound end")
+    def listStart[_: P]: P[Unit]     = P("[").opaque("List start")
+    def listEnd[_: P]: P[Unit]       = P("]").opaque("List end")
+
+    def byteEnd[_: P]: P[Unit]   = P("b").opaque("Byte end")
+    def shortEnd[_: P]: P[Unit]  = P("s").opaque("Short end")
+    def longEnd[_: P]: P[Unit]   = P("L").opaque("Long end")
+    def floatEnd[_: P]: P[Unit]  = P(CharIn("fF")).opaque("Float end")
+    def doubleEnd[_: P]: P[Unit] = P(CharIn("dD")).opaque("Double end")
+
+    def nbtByte[_: P]: P[NBTByte]     = P(wholeNumber ~ byteEnd).map(n => NBTByte(n.toByte))
+    def nbtShort[_: P]: P[NBTShort]   = P(wholeNumber ~ shortEnd).map(n => NBTShort(n.toShort))
+    def nbtLong[_: P]: P[NBTLong]     = P(wholeNumber ~ longEnd).map(n => NBTLong(n))
+    def nbtFloat[_: P]: P[NBTFloat]   = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
+    def nbtDouble[_: P]: P[NBTDouble] = P(floatingPoint ~ doubleEnd).map(n => NBTDouble(n))
+    def nbtInt[_: P]: P[NBTInt]       = P(wholeNumber.map(n => NBTInt(n.toInt)))
+
+    def nbtNumber[_: P]: P[NBTTag]    = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
+    def nbtString[_: P]: P[NBTString] = P(stringLiteral.map(s => NBTString(s.substring(1, s.length - 1))))
 
     //We make this lazy so that there won't be any wrong forward references
-    lazy val nbtTag: Parser[NBTTag] = P(nbtNumber | nbtString | nbtCompound | NoCut(nbtList) | nbtIntArray)
+    def nbtTag[_: P]: P[NBTTag] = P(nbtNumber | nbtString | nbtCompound | NoCut(nbtList) | nbtIntArray)
 
-    val nbtNamedTag: Parser[(String, NBTTag)] = P(tagName ~/ colon ~/ nbtTag)
-    val nbtCompound: Parser[NBTCompound] =
-      P(compoundStart ~/ nbtNamedTag.rep(sep = comma.~/) ~/ compoundEnd).map(xs => NBTCompound(xs.toMap))
-    val nbtIntArray: Parser[NBTIntArray] =
-      P(listStart ~/ wholeNumber.rep(sep = comma.~/) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
+    def nbtNamedTag[_: P]: P[(String, NBTTag)] = P(tagName ~/ colon ~/ nbtTag)
+    def nbtCompound[_: P]: P[NBTCompound] =
+      P(compoundStart ~/ nbtNamedTag.rep(sep = comma./) ~/ compoundEnd).map(xs => NBTCompound(xs.toMap))
+    def nbtIntArray[_: P]: P[NBTIntArray] =
+      P(listStart ~/ wholeNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
 
-    val indexedTag: Parser[(Int, NBTTag)] = P(tagIndex ~/ colon ~/ nbtTag)
-    val nbtList: Parser[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma.~/) ~/ listEnd)
+    def indexedTag[_: P]: P[(Int, NBTTag)] = P(tagIndex ~/ colon ~/ nbtTag)
+    def nbtList[_: P]: P[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma./) ~/ listEnd)
       .filter {
         case seq if seq.nonEmpty =>
           val head   = seq.head._2
@@ -119,7 +114,7 @@ object Mojangson {
       }
       .opaque("NBT List")
 
-    val wholeNbt: Parser[NBTCompound] = P(nbtCompound ~ End)
+    def wholeNbt[_: P]: P[NBTCompound] = P(nbtCompound ~ End)
   }
 
   /**

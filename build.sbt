@@ -50,7 +50,7 @@ lazy val typenbt = crossProject
     name := "typenbt",
     libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % Test,
     description := "TypeNBT is a NBT library that let's the user focus on the data, not how it's represented",
-    libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.12.6" % Provided
+    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
   )
 
 lazy val typenbtExtra = crossProject
@@ -71,7 +71,7 @@ lazy val typenbtMojangson = crossProject
     commonSettings,
     publishSettigs,
     name := "typenbt-mojangson",
-    libraryDependencies += "com.lihaoyi"    %%% "fastparse"  % "1.0.0",
+    libraryDependencies += "com.lihaoyi"    %%% "fastparse"  % "2.0.5",
     libraryDependencies += "org.scalactic"  %%% "scalactic"  % "3.0.4" % Test,
     libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.4" % Test,
     libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.13.4" % Test,
