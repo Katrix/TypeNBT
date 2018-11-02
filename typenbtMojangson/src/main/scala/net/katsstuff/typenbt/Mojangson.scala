@@ -35,31 +35,28 @@ object Mojangson {
     type NamedTag   = (String, NBTTag)
     type IndexedTag = (Int, NBTTag)
 
-    def numbers[_: P]: P[Unit] = CharsWhileIn("0-9", min = 1)
+    def nNumber[_: P]: P[Unit] = P(CharsWhileIn("0-9"))
 
     // Represents the regex \"(\\.|[^\\"])*\"
     def stringLiteral[_: P]: P[String] =
-      P("\"" ~ (("\\" ~ AnyChar) | CharPred(c => c != '\\' && c != '"')).rep ~ "\"").!.map(
-        _.replace("\\\"", "\"").replace("\\\\", "\\")
-      ).opaque("String literal")
+      P(
+        "\"" ~ (("\\" ~ AnyChar) | CharPred(c => c != '\\' && c != '"')).rep ~ "\""
+      ).!.map(_.replace("\\\"", "\"").replace("\\\\", "\\")).opaque("String literal")
 
     // Represents the regex [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?
     def floatingPoint[_: P]: P[Double] =
       P(
-        CharIn("+\\-").? ~ CharsWhileIn("0-9") ~ ".".? ~ CharsWhileIn("0-9", min = 1) ~ (CharIn("eE") ~ CharIn("+\\-").? ~ CharsWhileIn(
-          "0-9",
-          min = 1
-        )).?
-      ).!.map(_.toDouble).opaque("Floating point number")
+        CharIn("+\\-").? ~ (&(CharsWhileIn("0-9") ~ ".") ~ CharsWhileIn("0-9")).? ~ ".".? ~ nNumber ~ (CharIn("eE") ~ CharIn(
+          "+\\-"
+        ).? ~ nNumber).?
+      ).!.map(_.toDouble) //.opaque("Floating point number")
 
-    def wholeNumber[_: P]: P[Long] = P("-".? ~ CharsWhileIn("0-9", min = 1)).!.map(_.toLong).opaque("Whole number")
-
-    def colon[_: P]: P[Unit] = P(":")
+    def zNumber[_: P]: P[Long] = P("-".? ~ nNumber).!.map(_.toLong).opaque("Whole number")
 
     def colon[_: P]: P[Unit]     = P(":")
     def comma[_: P]: P[Unit]     = P(",")
     def tagName[_: P]: P[String] = P(CharsWhile(c => !":{}[]".contains(c))).!.opaque("Tag name") //Better way?
-    def tagIndex[_: P]: P[Int]   = P(CharsWhileIn("0-9", min = 1)).!.map(_.toInt).opaque("Tag index")
+    def tagIndex[_: P]: P[Int]   = P(nNumber).!.map(_.toInt).opaque("Tag index")
 
     def compoundStart[_: P]: P[Unit] = P("{").opaque("Compound start")
     def compoundEnd[_: P]: P[Unit]   = P("}").opaque("Compound end")
@@ -72,47 +69,47 @@ object Mojangson {
     def floatEnd[_: P]: P[Unit]  = P(CharIn("fF")).opaque("Float end")
     def doubleEnd[_: P]: P[Unit] = P(CharIn("dD")).opaque("Double end")
 
-    def nbtByte[_: P]: P[NBTByte]     = P(wholeNumber ~ byteEnd).map(n => NBTByte(n.toByte))
-    def nbtShort[_: P]: P[NBTShort]   = P(wholeNumber ~ shortEnd).map(n => NBTShort(n.toShort))
-    def nbtLong[_: P]: P[NBTLong]     = P(wholeNumber ~ longEnd).map(n => NBTLong(n))
+    def nbtByte[_: P]: P[NBTByte]     = P(zNumber ~ byteEnd).map(n => NBTByte(n.toByte))
+    def nbtShort[_: P]: P[NBTShort]   = P(zNumber ~ shortEnd).map(n => NBTShort(n.toShort))
+    def nbtLong[_: P]: P[NBTLong]     = P(zNumber ~ longEnd).map(n => NBTLong(n))
     def nbtFloat[_: P]: P[NBTFloat]   = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
     def nbtDouble[_: P]: P[NBTDouble] = P(floatingPoint ~ doubleEnd).map(n => NBTDouble(n))
-    def nbtInt[_: P]: P[NBTInt]       = P(wholeNumber.map(n => NBTInt(n.toInt)))
+    def nbtInt[_: P]: P[NBTInt]       = P(zNumber.map(n => NBTInt(n.toInt)))
 
     def nbtNumber[_: P]: P[NBTTag]    = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
     def nbtString[_: P]: P[NBTString] = P(stringLiteral.map(s => NBTString(s.substring(1, s.length - 1))))
 
-    //We make this lazy so that there won't be any wrong forward references
     def nbtTag[_: P]: P[NBTTag] = P(nbtNumber | nbtString | nbtCompound | NoCut(nbtList) | nbtIntArray)
 
-    def nbtNamedTag[_: P]: P[(String, NBTTag)] = P(tagName ~/ colon ~/ nbtTag)
+    def nbtNamedTag[_: P]: P[NamedTag] = P(tagName ~/ colon ~/ nbtTag)
     def nbtCompound[_: P]: P[NBTCompound] =
       P(compoundStart ~/ nbtNamedTag.rep(sep = comma./) ~/ compoundEnd).map(xs => NBTCompound(xs.toMap))
     def nbtIntArray[_: P]: P[NBTIntArray] =
-      P(listStart ~/ wholeNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
+      P(listStart ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
 
-    def indexedTag[_: P]: P[(Int, NBTTag)] = P(tagIndex ~/ colon ~/ nbtTag)
-    def nbtList[_: P]: P[NBTList[_, _ <: NBTTag]] = P(listStart ~/ indexedTag.rep(sep = comma./) ~/ listEnd)
-      .filter {
-        case seq if seq.nonEmpty =>
-          val head   = seq.head._2
-          val sameId = seq.forall(a => a._2.nbtType.id == head.nbtType.id)
+    def indexedTag[_: P]: P[IndexedTag] = P(tagIndex ~/ colon ~/ nbtTag)
+    def nbtList[_: P]: P[NBTList[_, _ <: NBTTag]] =
+      P(listStart ~/ indexedTag.rep(sep = comma./) ~/ listEnd)
+        .filter {
+          case seq if seq.nonEmpty =>
+            val head   = seq.head._2
+            val sameId = seq.forall(a => a._2.nbtType.id == head.nbtType.id)
 
-          sameId && seq.map(_._1) == seq.indices
-        case _ => true
-      }
-      .map {
-        case seq if seq.nonEmpty =>
-          val mapped   = seq.map(_._2)
-          val head     = mapped.head
-          val nbtType  = new NBTListType(head.nbtType.asInstanceOf[unsafe.AnyTagType])
-          val withType = mapped.asInstanceOf[Seq[unsafe.AnyTag]]
+            sameId && seq.map(_._1) == seq.indices
+          case _ => true
+        }
+        .map {
+          case seq if seq.nonEmpty =>
+            val mapped   = seq.map(_._2)
+            val head     = mapped.head
+            val nbtType  = new NBTListType(head.nbtType.asInstanceOf[unsafe.AnyTagType])
+            val withType = mapped.asInstanceOf[Seq[unsafe.AnyTag]]
 
-          NBTList[Any, unsafe.AnyTag](withType)(nbtType)
-        case _ =>
-          NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] //We use byte if there are no elements
-      }
-      .opaque("NBT List")
+            NBTList[Any, unsafe.AnyTag](withType)(nbtType)
+          case _ =>
+            NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] //We use byte if there are no elements
+        }
+        .opaque("NBT List")
 
     def wholeNbt[_: P]: P[NBTCompound] = P(nbtCompound ~ End)
   }
