@@ -92,8 +92,7 @@ object IONBT {
           _ <- prev
           _ <- writeEndTag(stream)
         } yield ()
-      }
-      else {
+      } else {
         inner(remaining.tail) {
           val (name, tag) = remaining.head
           for {

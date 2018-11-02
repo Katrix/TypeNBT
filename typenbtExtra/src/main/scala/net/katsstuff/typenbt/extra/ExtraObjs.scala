@@ -12,14 +12,14 @@ object ExtraObjs {
 
   class GetValueNBTCompound[Repr](private val compound: NBTCompound) extends AnyVal {
     def apply[NBT <: NBTTag](
-      key: String
+        key: String
     )(implicit deserializer: NBTDeserializer[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] =
       compound.get(key).flatMap(nbt => tpe.cast(nbt).flatMap(deserializer.from))
   }
 
   class GetRecursiveValueNBTCompound[Repr](private val compound: NBTCompound) extends AnyVal {
     def apply[NBT <: NBTTag](
-      keys: String*
+        keys: String*
     )(implicit deserializer: NBTDeserializer[Repr, NBT], tpe: Typeable[NBT]): Option[Repr] = {
       val tail = keys.tail
       if (tail == Nil) compound.getValue[Repr](keys.head)

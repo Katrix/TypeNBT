@@ -19,15 +19,15 @@ class NBTDerivation(val c: blackbox.Context) {
     typeOf[IndexedSeq[Byte]] -> typeOf[NBTByteArray],
     typeOf[String]           -> typeOf[NBTString],
     //typeOf[Seq] -> typeOf[NBTList],
-    typeOf[Map[String, _]]  -> compoundTpe,
-    typeOf[IndexedSeq[Int]] -> typeOf[NBTIntArray],
+    typeOf[Map[String, _]]   -> compoundTpe,
+    typeOf[IndexedSeq[Int]]  -> typeOf[NBTIntArray],
     typeOf[IndexedSeq[Long]] -> typeOf[NBTLongArray]
   )
 
   def createView[A: WeakTypeTag]: Expr[NBTView[A, NBTCompound]] = {
     val tpe = weakTypeOf[A]
 
-    if(!tpe.typeSymbol.isClass) {
+    if (!tpe.typeSymbol.isClass) {
       c.abort(c.enclosingPosition, s"$tpe is not a class or trait")
     }
 
@@ -37,18 +37,16 @@ class NBTDerivation(val c: blackbox.Context) {
 
     val classSymbol = tpe.typeSymbol.asClass
 
-    if(classSymbol.isCaseClass) {
+    if (classSymbol.isCaseClass) {
       deriveCaseClass(tpe)
-    }
-    else if(classSymbol.isTrait && classSymbol.isSealed) {
+    } else if (classSymbol.isTrait && classSymbol.isSealed) {
       val subclasses = classSymbol.knownDirectSubclasses
-      if(subclasses.isEmpty) {
+      if (subclasses.isEmpty) {
         c.abort(c.enclosingPosition, s"No known subclasses for $tpe")
       }
 
       deriveSealedTrait(tpe, subclasses)
-    }
-    else c.abort(c.enclosingPosition, s"$tpe is not a case class or sealed trait")
+    } else c.abort(c.enclosingPosition, s"$tpe is not a case class or sealed trait")
   }
 
   def deriveCaseClass[A](tpe: Type): Expr[NBTView[A, NBTCompound]] = {
@@ -116,7 +114,7 @@ class NBTDerivation(val c: blackbox.Context) {
     res
   }
 
-  def deriveSealedTrait[A](tpe: Type, subClasses: Set[Symbol]): Expr[NBTView[A, NBTCompound]]  = {
+  def deriveSealedTrait[A](tpe: Type, subClasses: Set[Symbol]): Expr[NBTView[A, NBTCompound]] = {
     val subClassesToNamesAndCode = subClasses.map { subClass =>
       val fieldType        = subClass.asType
       val fieldName        = subClass.name.toTermName.decodedName.toString
@@ -138,7 +136,7 @@ class NBTDerivation(val c: blackbox.Context) {
     val (toCompound, fromCompound) = subClassesToNamesAndCode.map {
       case (subClass, (_, serializerName, deserializerName, refinerName)) =>
         val subClassTpe = subClass.asType
-        val typeName  = subClass.name.toTermName.decodedName.toString
+        val typeName    = subClass.name.toTermName.decodedName.toString
 
         (
           cq"""value: $subClassTpe => _root_.scala.Predef.Map(("$$type", _root_.net.katsstuff.typenbt.NBTString($typeName)), ("$$value", $serializerName.to(value)))""",

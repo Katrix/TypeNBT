@@ -556,7 +556,7 @@ sealed class NBTListType[ElementRepr, ElementNBT <: NBTTag.Aux[ElementRepr]](
 
   override def equals(other: Any): Boolean = other match {
     case that: NBTListType[_, _] => elementType == that.elementType
-    case _ => false
+    case _                       => false
   }
 
   override def hashCode(): Int = {
