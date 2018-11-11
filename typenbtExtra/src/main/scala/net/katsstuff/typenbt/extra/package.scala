@@ -18,19 +18,6 @@ package object extra {
         toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
         evidence: Traversed <:< NamedTag
     ): NBTCompound = compound.merge(NBTCompound.fromHList(hList))
-
-    /**
-      * Gets a value from this if it exists at the specified key,
-      * and it can be converted to the specified value.
-      */
-    def getValue[Repr] = new GetValueNBTCompound[Repr](compound)
-
-    /**
-      * Same as [[NBTCompound.getNested]], but with a value instead of a [[NBTTag]].
-      *
-      * @see [[NBTCompound.getNested]]
-      */
-    def getNestedValue[Repr] = new GetRecursiveValueNBTCompound[Repr](compound)
   }
 
   implicit class ExtraNBTCompoundObjOps(private val compound: NBTCompound.type) extends AnyVal {

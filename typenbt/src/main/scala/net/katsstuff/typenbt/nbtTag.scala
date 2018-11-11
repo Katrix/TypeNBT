@@ -297,6 +297,21 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
   }
 
   /**
+    * Gets a value from this if it exists at the specified key,
+    * and it can be converted to the specified value.
+    */
+  def getValue[Repr]: NBTCompound.GetValueNBTCompound[Repr] =
+    new NBTCompound.GetValueNBTCompound[Repr](this)
+
+  /**
+    * Same as [[NBTCompound.getNested]], but with a value instead of a [[NBTTag]].
+    *
+    * @see [[NBTCompound.getNested]]
+    */
+  def getNestedValue[Repr]: NBTCompound.GetRecursiveValueNBTCompound[Repr] =
+    new NBTCompound.GetRecursiveValueNBTCompound[Repr](this)
+
+  /**
 		* Merges this [[NBTCompound]] with another, and if a conflict arises, uses the second one.
 		*/
   def merge(other: NBTCompound): NBTCompound = mergeAdvanced(other)((_, second) => second)
@@ -314,6 +329,27 @@ object NBTCompound {
 
   def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit serializer: NBTSerializer[Repr, NBT]): NBTCompound =
     new NBTCompound(map.mapValues(serializer.to))
+
+  class GetValueNBTCompound[Repr](private val compound: NBTCompound) extends AnyVal {
+    def apply[NBT <: NBTTag](
+        key: String
+    )(implicit deserializer: NBTDeserializer[Repr, NBT], refiner: NBTRefiner[NBT]): Option[Repr] =
+      compound.get(key).flatMap(nbt => refiner.refine(nbt).flatMap(deserializer.from))
+  }
+
+  class GetRecursiveValueNBTCompound[Repr](private val compound: NBTCompound) extends AnyVal {
+    def apply[NBT <: NBTTag](
+        keys: String*
+    )(implicit deserializer: NBTDeserializer[Repr, NBT], refiner: NBTRefiner[NBT]): Option[Repr] = {
+      val tail = keys.tail
+      if (tail == Nil) compound.getValue[Repr](keys.head)
+      else
+        compound.get(keys.head) match {
+          case Some(compound: NBTCompound) => compound.getNestedValue[Repr](tail: _*)
+          case _                           => None
+        }
+    }
+  }
 }
 
 final case class NBTIntArray(value: IndexedSeq[Int]) extends NBTTag {
