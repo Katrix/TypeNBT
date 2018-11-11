@@ -20,12 +20,11 @@ object UsingMojangson extends App {
   val toMojangson = Mojangson.serialize(compund)
   Mojangson.deserialize(toMojangson)
 
-  def errorMessage[T](p: P[_] => P[T], str: String) = {
+  def errorMessage[T](p: P[_] => P[T], str: String) =
     parse(str, p, verboseFailures = true) match {
       case Parsed.Success(value, index) => println(value)
-      case e: Parsed.Failure => println(e.longMsg)
+      case e: Parsed.Failure            => println(e.longMsg)
     }
-  }
 
   errorMessage(Mojangson.MojangsonParser.wholeNbt(_), nbtString1)
 }
