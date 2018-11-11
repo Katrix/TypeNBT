@@ -1,3 +1,5 @@
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
+
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
   version := "0.4.0-SNAPSHOT",
@@ -42,7 +44,7 @@ lazy val noPublishSettings = Seq(
   publishArtifact := false,
 )
 
-lazy val typenbt = crossProject
+lazy val typenbt = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .settings(
     commonSettings,
@@ -53,7 +55,7 @@ lazy val typenbt = crossProject
     libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
   )
 
-lazy val typenbtExtra = crossProject
+lazy val typenbtExtra = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .dependsOn(typenbt)
   .settings(
@@ -64,7 +66,7 @@ lazy val typenbtExtra = crossProject
     libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.3"
   )
 
-lazy val typenbtMojangson = crossProject
+lazy val typenbtMojangson = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .dependsOn(typenbt)
   .settings(
