@@ -42,27 +42,31 @@ package object extra {
     ) = NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
   }
 
+  //noinspection ConvertExpressionToSAM
   implicit def mapDeser[ElemRepr, ElemNBT <: NBTTag](
       implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
       typeable: Typeable[ElemNBT]
-  ): NBTDeserializer[Map[String, ElemRepr], NBTCompound] =
-    (arg: NBTCompound) =>
-      Some(
-        for {
-          (str, nbt) <- arg.value
-          typed      <- typeable.cast(nbt).toSeq
-          mapped     <- deser.from(typed).toSeq
-        } yield str -> mapped
-    )
-
-  implicit def mapSafeDeser[ElemRepr, ElemNBT <: NBTTag](
-      implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
-      typeable: Typeable[ElemNBT]
-  ): SafeNBTDeserializer[Map[String, ElemRepr], NBTCompound] =
-    (arg: NBTCompound) =>
+  ): NBTDeserializer[Map[String, ElemRepr], NBTCompound] = new NBTDeserializer[Map[String, ElemRepr], NBTCompound] {
+    override def from(arg: NBTCompound): Option[Map[String, ElemRepr]] = Some(
       for {
         (str, nbt) <- arg.value
         typed      <- typeable.cast(nbt).toSeq
         mapped     <- deser.from(typed).toSeq
       } yield str -> mapped
+    )
+  }
+
+  //noinspection ConvertExpressionToSAM
+  implicit def mapSafeDeser[ElemRepr, ElemNBT <: NBTTag](
+      implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
+      typeable: Typeable[ElemNBT]
+  ): SafeNBTDeserializer[Map[String, ElemRepr], NBTCompound] =
+    new SafeNBTDeserializer[Map[String, ElemRepr], NBTCompound] {
+      override def fromSafe(arg: NBTCompound): Map[String, ElemRepr] =
+        for {
+          (str, nbt) <- arg.value
+          typed      <- typeable.cast(nbt).toSeq
+          mapped     <- deser.from(typed).toSeq
+        } yield str -> mapped
+    }
 }

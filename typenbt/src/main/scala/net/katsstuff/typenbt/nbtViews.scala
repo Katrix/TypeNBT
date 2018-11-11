@@ -26,9 +26,11 @@ import scala.language.{existentials, higherKinds}
 
 /**
   * A typeclass responsible for serializing values into NBT.
+  *
   * @tparam Repr The type it serializes.
   * @tparam NBT The resulting NBT type.
   */
+//noinspection ConvertExpressionToSAM
 trait NBTSerializer[-Repr, +NBT <: NBTTag] { self =>
 
   /**
@@ -39,12 +41,16 @@ trait NBTSerializer[-Repr, +NBT <: NBTTag] { self =>
   /**
     * Create a new serializer that uses this serializer as a stepping stone.
     */
-  def contramap[NewRepr](f: NewRepr => Repr): NBTSerializer[NewRepr, NBT] = (v: NewRepr) => self.to(f(v))
+  def contramap[NewRepr](f: NewRepr => Repr): NBTSerializer[NewRepr, NBT] = new NBTSerializer[NewRepr, NBT] {
+    override def to(v: NewRepr): NBT = self.to(f(v))
+  }
 
   /**
     * Maps the NBT that resulted from using this serializer.
     */
-  def mapNbt[NewNBT <: NBTTag](f: NBT => NewNBT): NBTSerializer[Repr, NewNBT] = (v: Repr) => f(self.to(v))
+  def mapNbt[NewNBT <: NBTTag](f: NBT => NewNBT): NBTSerializer[Repr, NewNBT] = new NBTSerializer[Repr, NewNBT] {
+    override def to(v: Repr): NewNBT = f(self.to(v))
+  }
 }
 object NBTSerializer extends LowPriorityNBTSerializers {
   def apply[Repr, NBT <: NBTTag](implicit ser: NBTSerializer[Repr, NBT]): NBTSerializer[Repr, NBT] = ser
@@ -80,6 +86,7 @@ object NBTSerializer extends LowPriorityNBTSerializers {
       implicit elementType: NBTType[ElemRepr, ElemNBT]
   ): NBTSerializer[Seq[ElemNBT], NBTList[ElemRepr, ElemNBT]] = NBTType.listType[ElemRepr, ElemNBT]
 }
+//noinspection ConvertExpressionToSAM
 trait LowPriorityNBTSerializers extends ExtraLowPriorityNBTSerializers {
 
   implicit val BooleanView: NBTSerializer[Boolean, NBTByte] = NBTBoolean
@@ -87,24 +94,30 @@ trait LowPriorityNBTSerializers extends ExtraLowPriorityNBTSerializers {
 
   implicit def mapSer[ElemRepr, ElemNBT <: NBTTag](
       implicit ser: NBTSerializer[ElemRepr, ElemNBT]
-  ): NBTSerializer[Map[String, ElemRepr], NBTCompound] =
-    (v: Map[String, ElemRepr]) => NBTCompound(v.mapValues(ser.to))
+  ): NBTSerializer[Map[String, ElemRepr], NBTCompound] = new NBTSerializer[Map[String, ElemRepr], NBTCompound] {
+    override def to(v: Map[String, ElemRepr]): NBTCompound = NBTCompound(v.mapValues(ser.to))
+  }
 }
 
+//noinspection ConvertExpressionToSAM
 trait ExtraLowPriorityNBTSerializers {
 
   implicit def seqSer[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
       implicit ser: NBTSerializer[SeqRepr, ListNBT],
       listType: NBTListType[ListNBTRepr, ListNBT]
   ): NBTSerializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
-    (v: Seq[SeqRepr]) => NBTList[ListNBTRepr, ListNBT](v.map(ser.to))
+    new NBTSerializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] {
+      override def to(v: Seq[SeqRepr]): NBTList[ListNBTRepr, ListNBT] = NBTList[ListNBTRepr, ListNBT](v.map(ser.to))
+    }
 }
 
 /**
   * A typeclass responsible for deserializing values from NBT.
+  *
   * @tparam Repr The type it deserialize to.
   * @tparam NBT The original NBT type.
   */
+//noinspection ConvertExpressionToSAM
 trait NBTDeserializer[+Repr, -NBT <: NBTTag] { self =>
 
   /**
@@ -115,21 +128,25 @@ trait NBTDeserializer[+Repr, -NBT <: NBTTag] { self =>
   /**
     * Map the result of running this deserializer.
     */
-  def map[NewRepr](f: Repr => NewRepr): NBTDeserializer[NewRepr, NBT] =
-    (arg: NBT) => self.from(arg).map(f)
+  def map[NewRepr](f: Repr => NewRepr): NBTDeserializer[NewRepr, NBT] = new NBTDeserializer[NewRepr, NBT] {
+    override def from(arg: NBT): Option[NewRepr] = self.from(arg).map(f)
+  }
 
   /**
     * Map the result of running this deserializer using a function that can fail.
     */
-  def optMap[NewRepr](f: Repr => Option[NewRepr]): NBTDeserializer[NewRepr, NBT] =
-    (arg: NBT) => self.from(arg).flatMap(f)
+  def optMap[NewRepr](f: Repr => Option[NewRepr]): NBTDeserializer[NewRepr, NBT] = new NBTDeserializer[NewRepr, NBT] {
+    override def from(arg: NBT): Option[NewRepr] = self.from(arg).flatMap(f)
+  }
 
   /**
     * Create a new deserializer that changes the NBT type and uses this
     * deserializer as a stepping stone.
     */
   def contramapNbt[NewNBT <: NBTTag](f: NewNBT => NBT): NBTDeserializer[Repr, NewNBT] =
-    (arg: NewNBT) => self.from(f(arg))
+    new NBTDeserializer[Repr, NewNBT] {
+      override def from(arg: NewNBT): Option[Repr] = self.from(f(arg))
+    }
 }
 object NBTDeserializer extends LowPriorityNBTDeserializers {
   def apply[Repr, NBT <: NBTTag](implicit deser: NBTDeserializer[Repr, NBT]): NBTDeserializer[Repr, NBT] = deser
@@ -166,14 +183,18 @@ trait LowPriorityNBTDeserializers extends ExtraLowPriorityNBTDeserializers {
   implicit val UUIDView: NBTDeserializer[UUID, NBTCompound]   = NBTUUID
 }
 
+//noinspection ConvertExpressionToSAM
 trait ExtraLowPriorityNBTDeserializers {
 
   implicit def seqDeser[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
       implicit deser: NBTDeserializer[SeqRepr, ListNBT]
   ): NBTDeserializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
-    (arg: NBTList[ListNBTRepr, ListNBT]) => Some(arg.value.flatMap(deser.from))
+    new NBTDeserializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] {
+      override def from(arg: NBTList[ListNBTRepr, ListNBT]): Option[Seq[SeqRepr]] = Some(arg.value.flatMap(deser.from))
+    }
 }
 
+//noinspection ConvertExpressionToSAM
 trait SafeNBTDeserializer[+Repr, -NBT <: NBTTag] extends NBTDeserializer[Repr, NBT] { self =>
 
   override def from(arg: NBT): Option[Repr] = Some(fromSafe(arg))
@@ -183,7 +204,15 @@ trait SafeNBTDeserializer[+Repr, -NBT <: NBTTag] extends NBTDeserializer[Repr, N
     */
   def fromSafe(arg: NBT): Repr
 
-  override def map[NewRepr](f: Repr => NewRepr): SafeNBTDeserializer[NewRepr, NBT] = (arg: NBT) => f(self.fromSafe(arg))
+  override def map[NewRepr](f: Repr => NewRepr): SafeNBTDeserializer[NewRepr, NBT] =
+    new SafeNBTDeserializer[NewRepr, NBT] {
+      override def fromSafe(arg: NBT): NewRepr = f(self.fromSafe(arg))
+    }
+
+  override def contramapNbt[NewNBT <: NBTTag](f: NewNBT => NBT): SafeNBTDeserializer[Repr, NewNBT] =
+    new SafeNBTDeserializer[Repr, NewNBT] {
+      override def fromSafe(arg: NewNBT): Repr = self.fromSafe(f(arg))
+    }
 }
 object SafeNBTDeserializer extends LowPrioritySafeNBTDeserializers {
   def apply[Repr, NBT <: NBTTag](implicit deser: SafeNBTDeserializer[Repr, NBT]): SafeNBTDeserializer[Repr, NBT] = deser
@@ -219,12 +248,15 @@ object SafeNBTDeserializer extends LowPrioritySafeNBTDeserializers {
 trait LowPrioritySafeNBTDeserializers extends ExtraLowPrioritySafeNBTDeserializers {
   implicit val BooleanView: SafeNBTDeserializer[Boolean, NBTByte] = NBTBoolean
 }
+//noinspection ConvertExpressionToSAM
 trait ExtraLowPrioritySafeNBTDeserializers {
 
   implicit def seqSafeDeser[ListNBTRepr, SeqRepr, ListNBT <: NBTTag.Aux[ListNBTRepr]](
       implicit deser: NBTDeserializer[SeqRepr, ListNBT]
   ): SafeNBTDeserializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] =
-    (arg: NBTList[ListNBTRepr, ListNBT]) => arg.value.flatMap(deser.from)
+    new SafeNBTDeserializer[Seq[SeqRepr], NBTList[ListNBTRepr, ListNBT]] {
+      override def fromSafe(arg: NBTList[ListNBTRepr, ListNBT]): Seq[SeqRepr] = arg.value.flatMap(deser.from)
+    }
 }
 
 /**
