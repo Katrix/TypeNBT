@@ -2,7 +2,7 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
-  version := "0.4.0-SNAPSHOT",
+  version := "0.4.0",
   scalaVersion := "2.12.7",
   crossScalaVersions := Seq("2.11.12", scalaVersion.value)
 )
@@ -97,5 +97,11 @@ lazy val rootTypeNBT = project
   .aggregate(typenbtJVM, typenbtJS, typenbtExtraJVM, typenbtExtraJS, typenbtMojangsonJVM, typenbtMojangsonJS)
   .settings(
     commonSettings,
-    noPublishSettings
+    noPublishSettings,
+    //Fixes repository not specified error
+    publishTo := {
+      val nexus = "https://oss.sonatype.org/"
+      if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+      else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+    }
   )
