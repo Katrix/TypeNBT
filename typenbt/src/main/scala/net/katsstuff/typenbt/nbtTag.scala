@@ -328,7 +328,7 @@ object NBTCompound {
   def apply(values: (String, NBTTag)*): NBTCompound = NBTCompound(values.toMap)
 
   def apply[Repr, NBT <: NBTTag](map: Map[String, Repr])(implicit serializer: NBTSerializer[Repr, NBT]): NBTCompound =
-    new NBTCompound(map.mapValues(serializer.to))
+    new NBTCompound(map.map(t => t._1 -> serializer.to(t._2)))
 
   class GetValueNBTCompound[Repr](private val compound: NBTCompound) extends AnyVal {
     def apply[NBT <: NBTTag](

@@ -95,7 +95,7 @@ trait LowPriorityNBTSerializers extends ExtraLowPriorityNBTSerializers {
   implicit def mapSer[ElemRepr, ElemNBT <: NBTTag](
       implicit ser: NBTSerializer[ElemRepr, ElemNBT]
   ): NBTSerializer[Map[String, ElemRepr], NBTCompound] = new NBTSerializer[Map[String, ElemRepr], NBTCompound] {
-    override def to(v: Map[String, ElemRepr]): NBTCompound = NBTCompound(v.mapValues(ser.to))
+    override def to(v: Map[String, ElemRepr]): NBTCompound = NBTCompound(v.map(t => t._1 -> ser.to(t._2)))
   }
 }
 

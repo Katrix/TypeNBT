@@ -104,7 +104,7 @@ object IONBT {
         }
       }
 
-    inner(nbt.value.toSeq)(Success(Unit))
+    inner(nbt.value.toSeq)(Success(()))
   }
 
   private def writeString(stream: DataOutputStream, string: String): Try[Unit] =
@@ -209,7 +209,7 @@ object IONBT {
     for {
       length <- Try(stream.readInt())
       array = new Array[Int](length)
-      _ <- (0 until length).foldLeft[Try[Unit]](Success(Unit)) {
+      _ <- (0 until length).foldLeft[Try[Unit]](Success(())) {
         case (Success(_), i)     => Try(array(i) = stream.readInt())
         case (f @ Failure(_), _) => f
       }
@@ -219,7 +219,7 @@ object IONBT {
     for {
       length <- Try(stream.readInt())
       array = new Array[Long](length)
-      _ <- (0 until length).foldLeft[Try[Unit]](Success(Unit)) {
+      _ <- (0 until length).foldLeft[Try[Unit]](Success(())) {
         case (Success(_), i)     => Try(array(i) = stream.readLong())
         case (f @ Failure(_), _) => f
       }

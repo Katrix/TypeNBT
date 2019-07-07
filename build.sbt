@@ -3,8 +3,8 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
   version := "0.4.0",
-  scalaVersion := "2.12.7",
-  crossScalaVersions := Seq("2.11.12", scalaVersion.value)
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", scalaVersion.value, "2.13.0")
 )
 
 lazy val publishSettigs = Seq(
@@ -50,7 +50,7 @@ lazy val typenbt = crossProject(JSPlatform, JVMPlatform)
     commonSettings,
     publishSettigs,
     name := "typenbt",
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.4" % Test,
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.8" % Test,
     description := "TypeNBT is a NBT library that let's the user focus on the data, not how it's represented",
     libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
   )
@@ -73,11 +73,11 @@ lazy val typenbtMojangson = crossProject(JSPlatform, JVMPlatform)
     commonSettings,
     publishSettigs,
     name := "typenbt-mojangson",
-    libraryDependencies += "com.lihaoyi"    %%% "fastparse"  % "2.0.5",
-    libraryDependencies += "org.scalactic"  %%% "scalactic"  % "3.0.4" % Test,
-    libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.4" % Test,
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.13.4" % Test,
+    libraryDependencies += "com.lihaoyi"    %%% "fastparse"  % "2.1.3",
+    libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.8" % Test,
+    libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.14.0" % Test,
     description := "The mojangson module for TypeNBT lets user parse and print mojangson",
+    crossScalaVersions := Seq(scalaVersion.value, "2.13.0")
   )
 
 lazy val typenbtJVM = typenbt.jvm
