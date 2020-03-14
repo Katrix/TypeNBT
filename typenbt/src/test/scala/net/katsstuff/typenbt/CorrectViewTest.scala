@@ -20,11 +20,11 @@
  */
 package net.katsstuff.typenbt
 
-import org.scalatest.{FunSuite, Matchers}
-
 import net.katsstuff.typenbt._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class CorrectViewTest extends FunSuite with Matchers {
+class CorrectViewTest extends AnyFunSuite with Matchers {
 
   def getView[NBT <: NBTTag] = new getView[NBT]
 

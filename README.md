@@ -4,9 +4,9 @@ TypeNBT is a idiomatic, type safe NBT library for Scala. TypeNBT allows you to f
 
 Add TypeNBT to your project by including this line in build.sbt
 ```scala
-libraryDependencies += "net.katsstuff" %% "typenbt" % "0.4.0"
+libraryDependencies += "net.katsstuff" %% "typenbt" % "0.5.1"
 //Or this if you use Scala.js
-libraryDependencies += "net.katsstuff" %%% "typenbt" % "0.4.0"
+libraryDependencies += "net.katsstuff" %%% "typenbt" % "0.5.1"
 ```
 
 ## Why TypeNBT?
@@ -68,9 +68,9 @@ If you want more fanciness, then there is also the module `typenbt-extra`, which
 
 First add the dependency to your build.
 ```scala
-libraryDependencies += "net.katsstuff" %% "typenbt-extra" % "0.4.0"
+libraryDependencies += "net.katsstuff" %% "typenbt-extra" % "0.5.1"
 //Or this if you use Scala.js
-libraryDependencies += "net.katsstuff" %%% "typenbt-extra" % "0.4.0"
+libraryDependencies += "net.katsstuff" %%% "typenbt-extra" % "0.5.1"
 ```
 
 Now you can convert a `HList` into a `NBTCompound` or add a `HList` to an existing `NBTCompound`. First make sure you have your HList. The HList must consist of tuples from string to values that an NBTSerializer exists for. Then import `net.katsstuff.typenbt.extra._` and call `NBTCompound.fromHList(hList)` or do `compound ++ hList`. TypeNBT takes care of the rest.
@@ -79,9 +79,9 @@ Now you can convert a `HList` into a `NBTCompound` or add a `HList` to an existi
 TypeNBT also has another module for both parsing and creating mojangson.
 
 ```scala
-libraryDependencies += "net.katsstuff" %% "typenbt-mojangson" % "0.4.0"
+libraryDependencies += "net.katsstuff" %% "typenbt-mojangson" % "0.5.1"
 //Or this if you use Scala.js
-libraryDependencies += "net.katsstuff" %%% "typenbt-mojangson" % "0.4.0"
+libraryDependencies += "net.katsstuff" %%% "typenbt-mojangson" % "0.5.1"
 ```
 
 You can then use `Mojangson.toMojangson` and `Mojangson.fromMojangson`

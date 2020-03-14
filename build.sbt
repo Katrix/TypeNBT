@@ -1,10 +1,8 @@
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
-
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
-  version := "0.5.0",
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", scalaVersion.value, "2.13.0")
+  version := "0.5.1",
+  scalaVersion := "2.13.1",
+  crossScalaVersions := Seq("2.11.12", "2.12.8", scalaVersion.value)
 )
 
 lazy val publishSettigs = Seq(
@@ -30,7 +28,7 @@ lazy val publishSettigs = Seq(
   developers := List(
     Developer(
       id = "Katrix",
-      name = "Nikolai Frid",
+      name = "Kathryn Frid",
       email = "katrix97@hotmail.com",
       url = url("http://katsstuff.net/")
     )
@@ -41,7 +39,7 @@ lazy val publishSettigs = Seq(
 lazy val noPublishSettings = Seq(
   publish := {},
   publishLocal := {},
-  publishArtifact := false,
+  publishArtifact := false
 )
 
 lazy val typenbt = crossProject(JSPlatform, JVMPlatform)
@@ -50,7 +48,7 @@ lazy val typenbt = crossProject(JSPlatform, JVMPlatform)
     commonSettings,
     publishSettigs,
     name := "typenbt",
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.8" % Test,
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.1.1" % Test,
     description := "TypeNBT is a NBT library that let's the user focus on the data, not how it's represented",
     libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
   )
@@ -73,11 +71,12 @@ lazy val typenbtMojangson = crossProject(JSPlatform, JVMPlatform)
     commonSettings,
     publishSettigs,
     name := "typenbt-mojangson",
-    libraryDependencies += "com.lihaoyi"    %%% "fastparse"  % "2.1.3",
-    libraryDependencies += "org.scalatest"  %%% "scalatest"  % "3.0.8" % Test,
-    libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.14.0" % Test,
+    libraryDependencies += "com.lihaoyi"       %%% "fastparse"       % "2.2.4",
+    libraryDependencies += "org.scalatest"     %%% "scalatest"       % "3.1.1" % Test,
+    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-14" % "3.1.1.1" % Test,
+    libraryDependencies += "org.scalacheck"    %%% "scalacheck"      % "1.14.3" % Test,
     description := "The mojangson module for TypeNBT lets user parse and print mojangson",
-    crossScalaVersions := Seq(scalaVersion.value, "2.13.0")
+    crossScalaVersions := Seq("2.12.8", scalaVersion.value)
   )
 
 lazy val typenbtJVM = typenbt.jvm

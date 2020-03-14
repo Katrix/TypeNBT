@@ -20,9 +20,10 @@
  */
 package net.katsstuff.typenbt
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class ListCompiles extends FunSuite with Matchers {
+class ListCompiles extends AnyFunSuite with Matchers {
 
   test("NBTList with normal int tag compiles") {
     """

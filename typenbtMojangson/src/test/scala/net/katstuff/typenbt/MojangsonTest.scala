@@ -20,19 +20,19 @@
  */
 package net.katstuff.typenbt
 
+import fastparse._
+import net.katsstuff.typenbt.Mojangson.MojangsonParser
+import net.katsstuff.typenbt._
 import org.scalacheck._
 import org.scalactic.Equality
 import org.scalactic.anyvals.PosInt
 import org.scalatest.enablers.Containing
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.{BeMatcher, MatchResult}
-import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import fastparse._
-import net.katsstuff.typenbt._
-import Mojangson.MojangsonParser
-
-class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyChecks with NBTGenerator { self =>
+class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPropertyChecks with NBTGenerator { self =>
 
   val successful: BeMatcher[Parsed[_]] =
     BeMatcher[Parsed[_]](
@@ -43,20 +43,23 @@ class MojangsonTest extends FunSuite with Matchers with GeneratorDrivenPropertyC
         }, "Parser was not successful", "Parser was successful")
     )
 
-  implicit def parseResultContainer[A: Equality] = new Containing[Parsed[A]] {
+  implicit def parseResultContainer[A: Equality]: Containing[Parsed[A]] = new Containing[Parsed[A]] {
     override def contains(container: Parsed[A], element: Any): Boolean =
       container match {
         case Parsed.Failure(_, _, _)      => false
         case Parsed.Success(parsedVal, _) => implicitly[Equality[A]].areEqual(parsedVal, element)
       }
-    override def containsOneOf(container: Parsed[A], elements: Seq[Any]): Boolean = {
+
+
+    override def containsOneOf(container: Parsed[A], elements: collection.Seq[Any]): Boolean = {
       val equal = implicitly[Equality[A]]
       container match {
         case Parsed.Failure(_, _, _)      => false
         case Parsed.Success(parsedVal, _) => elements.exists(equal.areEqual(parsedVal, _))
       }
     }
-    override def containsNoneOf(container: Parsed[A], elements: Seq[Any]): Boolean = {
+
+    override def containsNoneOf(container: Parsed[A], elements: collection.Seq[Any]): Boolean = {
       val equal = implicitly[Equality[A]]
       container match {
         case Parsed.Failure(_, _, _)      => false
