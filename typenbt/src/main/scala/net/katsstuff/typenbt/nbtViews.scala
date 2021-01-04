@@ -22,8 +22,6 @@ package net.katsstuff.typenbt
 
 import java.util.UUID
 
-import scala.language.{existentials, higherKinds}
-
 /**
   * A typeclass responsible for serializing values into NBT.
   *

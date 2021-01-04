@@ -188,11 +188,11 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
 		* @param key The key to bind to.
 		* @param value The value top set
 		* @param serializer The converter to convert the value to a NBTTag
-		* @tparam Repr The type to convert from
+		* @tparam ValueRepr The type to convert from
 		* @tparam NBT The tag to convert to
 		*/
-  def setValue[Repr, NBT <: NBTTag](key: String, value: Repr)(
-      implicit serializer: NBTSerializer[Repr, NBT]
+  def setValue[ValueRepr, NBT <: NBTTag](key: String, value: ValueRepr)(
+      implicit serializer: NBTSerializer[ValueRepr, NBT]
   ): NBTCompound =
     set(key, serializer.to(value))
 
@@ -300,16 +300,16 @@ final case class NBTCompound(value: Map[String, NBTTag] = Map()) extends NBTTag 
     * Gets a value from this if it exists at the specified key,
     * and it can be converted to the specified value.
     */
-  def getValue[Repr]: NBTCompound.GetValueNBTCompound[Repr] =
-    new NBTCompound.GetValueNBTCompound[Repr](this)
+  def getValue[ValueRepr]: NBTCompound.GetValueNBTCompound[ValueRepr] =
+    new NBTCompound.GetValueNBTCompound[ValueRepr](this)
 
   /**
     * Same as [[NBTCompound.getNested]], but with a value instead of a [[NBTTag]].
     *
     * @see [[NBTCompound.getNested]]
     */
-  def getNestedValue[Repr]: NBTCompound.GetRecursiveValueNBTCompound[Repr] =
-    new NBTCompound.GetRecursiveValueNBTCompound[Repr](this)
+  def getNestedValue[ValueRepr]: NBTCompound.GetRecursiveValueNBTCompound[ValueRepr] =
+    new NBTCompound.GetRecursiveValueNBTCompound[ValueRepr](this)
 
   /**
 		* Merges this [[NBTCompound]] with another, and if a conflict arises, uses the second one.

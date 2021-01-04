@@ -13,19 +13,19 @@ package object extra {
       * Creates a new [[NBTCompound]] with the hlist appended.
       * If there exists duplicate values it uses the second one.
       */
-    def ++[Input <: HList, Mapped <: HList, Traversed](hList: Input)(
-        implicit mapper: Mapper.Aux[tupleToNBT.type, Input, Mapped],
-        toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-        evidence: Traversed <:< NamedTag
+    def ++[Input <: HList, NbtMapped <: HList, Traversed](hList: Input)(
+      implicit mapper: Mapper.Aux[tupleToNBT.type, Input, NbtMapped],
+      toTraversable: ToTraversable.Aux[NbtMapped, Seq, Traversed],
+      evidence: Traversed <:< NamedTag
     ): NBTCompound = compound.merge(NBTCompound.fromHList(hList))
   }
 
   implicit class ExtraNBTCompoundObjOps(private val compound: NBTCompound.type) extends AnyVal {
 
-    def fromHList[Input <: HList, Mapped <: HList, Traversed](elements: Input)(
-        implicit mapper: Mapper.Aux[tupleToNBT.type, Input, Mapped],
-        toTraversable: ToTraversable.Aux[Mapped, Seq, Traversed],
-        evidence: Traversed <:< NamedTag
+    def fromHList[Input <: HList, NbtMapped <: HList, Traversed](elements: Input)(
+      implicit mapper: Mapper.Aux[tupleToNBT.type, Input, NbtMapped],
+      toTraversable: ToTraversable.Aux[NbtMapped, Seq, Traversed],
+      evidence: Traversed <:< NamedTag
     ) = NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
   }
 

@@ -81,7 +81,7 @@ object Mojangson {
       P(
         (zNumber.map(BigDecimal(_)) ~ doubleEnd) |
           (zNumber ~ floatingPoint ~ doubleEnd.?)
-            .map(t => BigDecimal(t._1) + (t._1.sign.toInt * t._2)) | //Parse whole part followed by floating part
+            .map(t => BigDecimal(t._1) + (math.signum(t._1.toInt) * t._2)) | //Parse whole part followed by floating part
           (!zNumber ~ floatingPoint ~ doubleEnd.?) //Only used for more exotic stuff
       ).map(n => NBTDouble(n.toDouble))
     def nbtInt[_: P]: P[NBTInt] = P(zNumber.map(n => NBTInt(n.toInt)))

@@ -144,8 +144,6 @@ class NBTDerivation(val c: blackbox.Context) {
         )
     }.unzip
 
-    val fromPartial = q"{ case ..$fromCompound }"
-
     val resTree = q"""
          new _root_.net.katsstuff.typenbt.NBTView[$tpe, _root_.net.katsstuff.typenbt.NBTCompound] {
              ..$codeVals

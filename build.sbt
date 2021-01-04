@@ -2,7 +2,19 @@ lazy val commonSettings = Seq(
   organization := "net.katsstuff",
   version := "0.5.1",
   scalaVersion := "2.13.4",
-  crossScalaVersions := Seq("2.11.12", "2.12.8", scalaVersion.value)
+  crossScalaVersions := Seq("2.12.8", scalaVersion.value, "3.0.0-M3"),
+  scalacOptions ++= Seq(
+    "-deprecation",
+    "-feature",
+    "-unchecked",
+    "-Xlint",
+    "-Ywarn-dead-code"
+  ),
+  scalacOptions ++= (
+    if (scalaVersion.value.startsWith("2.12"))
+      Seq("-Yno-adapted-args", "-Ywarn-unused-import", "-Ypartial-unification", "-language:higherKinds")
+    else Nil
+  )
 )
 
 lazy val publishSettigs = Seq(
@@ -48,7 +60,7 @@ lazy val typenbt = crossProject(JSPlatform, JVMPlatform)
     commonSettings,
     publishSettigs,
     name := "typenbt",
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.1.1" % Test,
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.3" % Test,
     description := "TypeNBT is a NBT library that let's the user focus on the data, not how it's represented",
     libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
   )
@@ -76,7 +88,6 @@ lazy val typenbtMojangson = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-14" % "3.1.1.1" % Test,
     libraryDependencies += "org.scalacheck"    %%% "scalacheck"      % "1.14.3" % Test,
     description := "The mojangson module for TypeNBT lets user parse and print mojangson",
-    crossScalaVersions := Seq("2.12.8", scalaVersion.value)
   )
 
 lazy val typenbtJVM = typenbt.jvm

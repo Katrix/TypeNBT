@@ -241,12 +241,12 @@ object IONBT {
       case NBTType.TagLong      => Try(NBTLong(stream.readLong()).asInstanceOf[NBTTag.Aux[A]])
       case NBTType.TagFloat     => Try(NBTFloat(stream.readFloat()).asInstanceOf[NBTTag.Aux[A]])
       case NBTType.TagDouble    => Try(NBTDouble(stream.readDouble()).asInstanceOf[NBTTag.Aux[A]])
-      case NBTType.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagByteArray => readByteArray(stream).map(a => NBTByteArray(a.toIndexedSeq).asInstanceOf[NBTTag.Aux[A]])
       case NBTType.TagString    => readString(stream).map(s => NBTString(s).asInstanceOf[NBTTag.Aux[A]])
       case unsafe.TagList       => readList(stream).asInstanceOf[Try[NBTTag.Aux[A]]]
       case NBTType.TagCompound  => readCompound(stream, NBTCompound()).asInstanceOf[Try[NBTTag.Aux[A]]]
-      case NBTType.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a).asInstanceOf[NBTTag.Aux[A]])
-      case NBTType.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagIntArray  => readIntArray(stream).map(a => NBTIntArray(a.toIndexedSeq).asInstanceOf[NBTTag.Aux[A]])
+      case NBTType.TagLongArray => readLongArray(stream).map(a => NBTLongArray(a.toIndexedSeq).asInstanceOf[NBTTag.Aux[A]])
       case NBTType.TagEnd       => Failure(new IOException("Unexpected end tag"))
       case _                    => Failure(new IOException("Unexpected tag type"))
     }
