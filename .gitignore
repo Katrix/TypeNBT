@@ -26,6 +26,7 @@ run
 #sbt
 target
 project/target
+.bsp
 
 #mac
 .DS_Store

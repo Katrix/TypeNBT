@@ -1,7 +1,7 @@
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
   version := "0.5.1",
-  scalaVersion := "2.13.1",
+  scalaVersion := "2.13.4",
   crossScalaVersions := Seq("2.11.12", "2.12.8", scalaVersion.value)
 )
 
