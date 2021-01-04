@@ -28,30 +28,34 @@ object Mojangson {
   /**
 		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
 		*/
-  def deserialize(mojangson: String): Parsed[NBTCompound] = parse(mojangson, MojangsonParser.wholeNbt(_))
+  def deserialize(mojangson: String, verbose: Boolean = false): Parsed[NBTCompound] =
+    parse(mojangson, MojangsonParser.wholeNbt(_), verbose)
 
   object MojangsonParser {
 
     type NamedTag   = (String, NBTTag)
-    type IndexedTag = (Int, NBTTag)
+    type IndexedTag = (Option[Int], NBTTag)
 
     def nNumber[_: P]: P[Unit] = P(CharsWhileIn("0-9"))
 
     // Represents the regex \"(\\.|[^\\"])*\"
-    def stringLiteral[_: P]: P[String] =
+    def stringLiteral[_: P](quotes: Char): P[String] =
       P(
-        "\"" ~ (("\\" ~ AnyChar) | CharPred(c => c != '\\' && c != '"')).rep ~ "\""
-      ).!.map(_.replace("\\\"", "\"").replace("\\\\", "\\")).opaque("String literal")
+        quotes.toString ~ (("\\" ~ AnyChar) | CharPred(c => c != '\\' && c != quotes)).rep ~ quotes.toString
+      ).!.map(_.replace("\\" + quotes, quotes.toString).replace("\\\\", "\\")).opaque("String literal")
+
+    def rawString[_: P]: P[String] =
+      P(CharsWhileIn("a-zA-Z0-9") ~ (" " ~ CharsWhile(c => c != ',' && c != ']' && c != '}', 1))).!
 
     // Represents the regex [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?
-    def floatingPoint[_: P]: P[Double] =
+    def floatingPoint[_: P]: P[BigDecimal] =
       P(
         CharIn("+\\-").? ~ (&(CharsWhileIn("0-9") ~ ".") ~ CharsWhileIn("0-9")).? ~ ".".? ~ nNumber ~ (CharIn("eE") ~ CharIn(
           "+\\-"
         ).? ~ nNumber).?
-      ).!.map(_.toDouble) //.opaque("Floating point number")
+      ).!.map(BigDecimal(_)).opaque("Floating point number")
 
-    def zNumber[_: P]: P[Long] = P("-".? ~ nNumber).!.map(_.toLong).opaque("Whole number")
+    def zNumber[_: P]: P[BigInt] = P("-".? ~ nNumber).!.map(BigInt(_)).opaque("Whole number")
 
     def colon[_: P]: P[Unit]     = P(":")
     def comma[_: P]: P[Unit]     = P(",")
@@ -63,41 +67,58 @@ object Mojangson {
     def listStart[_: P]: P[Unit]     = P("[").opaque("List start")
     def listEnd[_: P]: P[Unit]       = P("]").opaque("List end")
 
-    def byteEnd[_: P]: P[Unit]   = P("b").opaque("Byte end")
-    def shortEnd[_: P]: P[Unit]  = P("s").opaque("Short end")
-    def longEnd[_: P]: P[Unit]   = P("L").opaque("Long end")
+    def byteEnd[_: P]: P[Unit]   = P(CharIn("bB")).opaque("Byte end")
+    def shortEnd[_: P]: P[Unit]  = P(CharIn("sS")).opaque("Short end")
+    def longEnd[_: P]: P[Unit]   = P(CharIn("lL")).opaque("Long end")
     def floatEnd[_: P]: P[Unit]  = P(CharIn("fF")).opaque("Float end")
     def doubleEnd[_: P]: P[Unit] = P(CharIn("dD")).opaque("Double end")
 
-    def nbtByte[_: P]: P[NBTByte]     = P(zNumber ~ byteEnd).map(n => NBTByte(n.toByte))
-    def nbtShort[_: P]: P[NBTShort]   = P(zNumber ~ shortEnd).map(n => NBTShort(n.toShort))
-    def nbtLong[_: P]: P[NBTLong]     = P(zNumber ~ longEnd).map(n => NBTLong(n))
-    def nbtFloat[_: P]: P[NBTFloat]   = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
-    def nbtDouble[_: P]: P[NBTDouble] = P(floatingPoint ~ doubleEnd).map(n => NBTDouble(n))
-    def nbtInt[_: P]: P[NBTInt]       = P(zNumber.map(n => NBTInt(n.toInt)))
+    def nbtByte[_: P]: P[NBTByte]   = P(zNumber ~ byteEnd).map(n => NBTByte(n.toByte))
+    def nbtShort[_: P]: P[NBTShort] = P(zNumber ~ shortEnd).map(n => NBTShort(n.toShort))
+    def nbtLong[_: P]: P[NBTLong]   = P(zNumber ~ longEnd).map(n => NBTLong(n.toLong))
+    def nbtFloat[_: P]: P[NBTFloat] = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
+    def nbtDouble[_: P]: P[NBTDouble] =
+      P(
+        (zNumber.map(BigDecimal(_)) ~ doubleEnd) |
+          (zNumber ~ floatingPoint ~ doubleEnd.?)
+            .map(t => BigDecimal(t._1) + (t._1.sign.toInt * t._2)) | //Parse whole part followed by floating part
+          (!zNumber ~ floatingPoint ~ doubleEnd.?) //Only used for more exotic stuff
+      ).map(n => NBTDouble(n.toDouble))
+    def nbtInt[_: P]: P[NBTInt] = P(zNumber.map(n => NBTInt(n.toInt)))
 
-    def nbtNumber[_: P]: P[NBTTag]    = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
-    def nbtString[_: P]: P[NBTString] = P(stringLiteral.map(s => NBTString(s.substring(1, s.length - 1))))
+    def nbtNumber[_: P]: P[NBTTag] = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
+    def nbtString[_: P]: P[NBTString] =
+      P(rawString | stringLiteral('"') | stringLiteral('\'')).map(s => NBTString(s.substring(1, s.length - 1)))
 
-    def nbtTag[_: P]: P[NBTTag] = P(nbtNumber | nbtString | nbtCompound | NoCut(nbtList) | nbtIntArray)
+    def nbtTag[_: P]: P[NBTTag] =
+      P(nbtNumber | nbtString | nbtCompound | nbtByteArray | nbtIntArray | nbtLongArray | nbtList)
 
     def nbtNamedTag[_: P]: P[NamedTag] = P(tagName ~/ colon ~/ nbtTag)
     def nbtCompound[_: P]: P[NBTCompound] =
       P(compoundStart ~/ nbtNamedTag.rep(sep = comma./) ~/ compoundEnd).map(xs => NBTCompound(xs.toMap))
+    def nbtByteArray[_: P]: P[NBTByteArray] =
+      P(listStart ~ "B;" ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTByteArray(xs.map(_.toByte).toVector))
     def nbtIntArray[_: P]: P[NBTIntArray] =
-      P(listStart ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
+      P(listStart ~ "I;" ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
+    def nbtLongArray[_: P]: P[NBTLongArray] =
+      P(listStart ~ "L;" ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTLongArray(xs.map(_.toLong).toVector))
 
-    def indexedTag[_: P]: P[IndexedTag] = P(tagIndex ~/ colon ~/ nbtTag)
+    def indexedTag[_: P]: P[IndexedTag] = P((tagIndex ~ colon).? ~ nbtTag)
     def nbtList[_: P]: P[NBTList[_, _ <: NBTTag]] =
-      P(listStart ~/ indexedTag.rep(sep = comma./) ~/ listEnd)
+      P(listStart ~ indexedTag.rep(sep = comma./) ~/ listEnd)
+      /*
         .filter {
           case seq if seq.nonEmpty =>
             val head   = seq.head._2
             val sameId = seq.forall(a => a._2.nbtType.id == head.nbtType.id)
 
-            sameId && seq.map(_._1) == seq.indices
+            val stringIndices      = seq.map(_._1)
+            val missingSomeIndices = stringIndices.exists(_.isEmpty)
+
+            sameId && (missingSomeIndices || stringIndices == seq.indices)
           case _ => true
         }
+         */
         .map {
           case seq if seq.nonEmpty =>
             val mapped   = seq.map(_._2)
@@ -117,40 +138,53 @@ object Mojangson {
   /**
 		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson.
 		*/
-  def serialize(tag: NBTTag): String = tag match {
+  def serialize(tag: NBTTag, indexedList: Boolean = false): String = tag match {
     case NBTByte(b)          => s"${b}b"
     case NBTShort(s)         => s"${s}s"
     case NBTInt(i)           => s"$i"
     case NBTLong(l)          => s"${l}L"
     case NBTFloat(f)         => s"${f}f"
     case NBTDouble(d)        => s"${d}d"
-    case NBTByteArray(array) => s"[${array.length} bytes]"
+    case NBTByteArray(array) => toMojangsonArray("B", array)
+    case NBTIntArray(ints)   => toMojangsonArray("I", ints)
+    case NBTLongArray(longs) => toMojangsonArray("L", longs)
     case NBTString(s)        => s""""$s""""
-    case NBTList(list)       => toMojangsonList(list)
-    case NBTCompound(tags)   => toMojangsonCompound(tags)
-    case NBTIntArray(ints)   => toMojangsonIntArray(ints)
+    case NBTList(list)       => toMojangsonList(list, indexedList)
+    case NBTCompound(tags)   => toMojangsonCompound(tags, indexedList)
   }
 
-  private def toMojangsonIterable[A](startChar: Char, endChar: Char, xs: Iterable[A])(format: A => String) = {
-    val b = new StringBuilder(s"$startChar")
+  private def toMojangsonIterable[A](start: String, end: String, xs: Iterable[A])(format: A => String) = {
+    val b = new StringBuilder(start)
 
+    var atStart = true
     for (x <- xs) {
-      if (b.length != 1) {
+      if (!atStart) {
         b.append(',')
       }
+
+      atStart = false
       b.append(format(x))
     }
 
-    b.append(endChar).mkString
+    b.append(end).mkString
   }
 
-  private def toMojangsonList(list: Seq[NBTTag]): String = toMojangsonIterable('[', ']', list.zipWithIndex) {
-    case (tag, index) => s"$index:${serialize(tag)}"
-  }
-  private def toMojangsonCompound(tags: Map[String, NBTTag]): String = toMojangsonIterable('{', '}', tags) {
-    case (name, tag) => s"$name:${serialize(tag)}"
-  }
-  private def toMojangsonIntArray(ints: Seq[Int]): String = toMojangsonIterable('[', ']', ints)(int => s"$int")
+  private def toMojangsonList(list: Seq[NBTTag], indexedList: Boolean): String =
+    if (indexedList) {
+      toMojangsonIterable("[", "]", list.zipWithIndex) {
+        case (nbt, index) => s"$index:${serialize(nbt, indexedList)}"
+      }
+    } else {
+      toMojangsonIterable("[", "]", list)(serialize(_, indexedList))
+    }
+
+  private def toMojangsonCompound(tags: Map[String, NBTTag], indexedList: Boolean): String =
+    toMojangsonIterable("{", "}", tags) {
+      case (name, tag) => s"$name:${serialize(tag, indexedList)}"
+    }
+
+  private def toMojangsonArray(arrayPrefix: String, values: Seq[_]): String =
+    toMojangsonIterable(s"[$arrayPrefix;", "]", values)(_.toString)
 
   /**
 		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson with indentation
@@ -159,12 +193,14 @@ object Mojangson {
 		* @param indentLevel How many indent characters to insert per level
 		* @param indentChar The indent character to use
 		*/
-  def serializeIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	'): String = {
+  def serializeIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	', indexedList: Boolean): String = {
     tag match {
-      case NBTList(list)     => toMojangsonIndentList(list, indentLevel, indentChar)
-      case NBTCompound(tags) => toMojangsonIndentCompound(tags, indentLevel, indentChar)
-      case NBTIntArray(tags) => toMojangsonIndentIntArray(tags, indentLevel, indentChar)
-      case _                 => serialize(tag)
+      case NBTList(list)      => toMojangsonIndentList(list, indentLevel, indentChar, indexedList)
+      case NBTCompound(tags)  => toMojangsonIndentCompound(tags, indentLevel, indentChar, indexedList)
+      case NBTByteArray(tags) => toMojangsonIndentArray(tags, "B", indentLevel, indentChar)
+      case NBTIntArray(tags)  => toMojangsonIndentArray(tags, "I", indentLevel, indentChar)
+      case NBTLongArray(tags) => toMojangsonIndentArray(tags, "L", indentLevel, indentChar)
+      case _                  => serialize(tag)
     }
   }
 
@@ -174,13 +210,13 @@ object Mojangson {
   }
 
   private def toMojangsonIndentIterable[A](
-      startChar: Char,
-      endChar: Char,
+      start: String,
+      end: String,
       indentLevel: Int,
       indentChar: Char,
       xs: Iterable[A]
   )(format: A => String): String = {
-    val b = new StringBuilder(s"$startChar")
+    val b = new StringBuilder(start)
 
     for (x <- xs) {
       if (b.length != 1) {
@@ -193,17 +229,35 @@ object Mojangson {
     if (xs.nonEmpty) {
       indent(b, indentLevel - 1, indentChar)
     }
-    b.append(endChar).mkString
+    b.append(end).mkString
   }
 
-  private def toMojangsonIndentList(list: Seq[NBTTag], indentLevel: Int, indentChar: Char): String =
-    toMojangsonIndentIterable('[', ']', indentLevel, indentChar, list.zipWithIndex) {
-      case (tag, index) => s"$index:${serializeIndent(tag, indentLevel, indentChar)}"
+  private def toMojangsonIndentList(
+      list: Seq[NBTTag],
+      indentLevel: Int,
+      indentChar: Char,
+      indexedList: Boolean
+  ): String =
+    if (indexedList) {
+      toMojangsonIndentIterable("[", "]", indentLevel, indentChar, list.zipWithIndex) {
+        case (tag, index) => s"$index:${serializeIndent(tag, indentLevel, indentChar, indexedList)}"
+      }
+    } else {
+      toMojangsonIndentIterable("[", "]", indentLevel, indentChar, list)(
+        serializeIndent(_, indentLevel, indentChar, indexedList)
+      )
     }
-  private def toMojangsonIndentCompound(tags: Map[String, NBTTag], indentLevel: Int, indentChar: Char): String =
-    toMojangsonIndentIterable('{', '}', indentLevel, indentChar, tags) {
-      case (name, tag) => s"$name:${serializeIndent(tag, indentLevel, indentChar)}"
+
+  private def toMojangsonIndentCompound(
+      tags: Map[String, NBTTag],
+      indentLevel: Int,
+      indentChar: Char,
+      indexedList: Boolean
+  ): String =
+    toMojangsonIndentIterable("{", "}", indentLevel, indentChar, tags) {
+      case (name, tag) => s"$name:${serializeIndent(tag, indentLevel, indentChar, indexedList)}"
     }
-  private def toMojangsonIndentIntArray(ints: Seq[Int], indentLevel: Int, indentChar: Char): String =
-    toMojangsonIndentIterable('[', ']', indentLevel, indentChar, ints)(int => s"$int")
+
+  private def toMojangsonIndentArray(values: Seq[_], prefix: String, indentLevel: Int, indentChar: Char): String =
+    toMojangsonIndentIterable(s"[$prefix;", "]", indentLevel, indentChar, values)(_.toString)
 }

@@ -35,13 +35,12 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPropertyChecks with NBTGenerator { self =>
 
   val successful: BeMatcher[Parsed[_]] =
-    BeMatcher[Parsed[_]](
-      left =>
-        MatchResult(left match {
-          case Parsed.Success(_, _)    => true
-          case Parsed.Failure(_, _, _) => false
-        }, "Parser was not successful", "Parser was successful")
-    )
+    BeMatcher[Parsed[_]] { parsed =>
+      MatchResult(parsed match {
+        case Parsed.Success(_, _) => true
+        case Parsed.Failure(_, _, _) => false
+      }, "Parser was not successful", "Parser was successful")
+    }
 
   implicit def parseResultContainer[A: Equality]: Containing[Parsed[A]] = new Containing[Parsed[A]] {
     override def contains(container: Parsed[A], element: Any): Boolean =
@@ -68,34 +67,26 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
     }
   }
 
-  private def validMojangsonTag(tag: NBTTag): Boolean = tag match {
-    case NBTByteArray(_)   => false
-    case NBTList(xs)       => xs.forall(validMojangsonTag(_)) && xs.nonEmpty
-    case NBTIntArray(xs)   => xs.nonEmpty
-    case NBTCompound(tags) => tags.forall(child => validMojangsonTag(child._2))
-    case _                 => true
-  }
-
   private def tagNameValid(string: String): Boolean = string.nonEmpty
 
   test("stringLiteral should accept any string with quotes at the start and end") {
     forAll(Gen.alphaNumStr) { string: String =>
       val addedString = "\"" + string + "\""
-      val parsed      = parse(addedString, MojangsonParser.stringLiteral(_))
+      val parsed      = parse(addedString, MojangsonParser.stringLiteral('"')(_))
       parsed should contain(addedString)
     }
   }
   test("stringLiteral should fail if the string is missing a quotes at the start") {
     forAll(Gen.alphaNumStr) { string: String =>
       val addedSign = string + "\""
-      val parsed    = parse(addedSign, MojangsonParser.stringLiteral(_))
+      val parsed    = parse(addedSign, MojangsonParser.stringLiteral('"')(_))
       parsed shouldNot contain(addedSign)
     }
   }
   test("stringLiteral should fail if the string is missing a quotes at the end") {
     forAll(Gen.alphaNumStr) { string: String =>
       val addedSign = "\"" + string
-      val parsed    = parse(addedSign, MojangsonParser.stringLiteral(_))
+      val parsed    = parse(addedSign, MojangsonParser.stringLiteral('"')(_))
       parsed shouldNot contain(addedSign)
     }
   }
@@ -175,12 +166,7 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
     val parsed = parse(string, MojangsonParser.nbtFloat(_))
     parsed should contain(NBTFloat(128F))
   }
-  test("nbtFloat should parse a float followed by f") {
-    val string = "128f"
-    val parsed = parse(string, MojangsonParser.nbtFloat(_))
-    parsed should contain(NBTFloat(128F))
-  }
-  test("nbtFloat should fail without the f or F") {
+  test("nbtFloat should fail without the F") {
     val string = "128"
     val parsed = parse(string, MojangsonParser.nbtFloat(_))
     parsed shouldNot be(successful)
@@ -191,20 +177,40 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
     val parsed = parse(string, MojangsonParser.nbtDouble(_))
     parsed should contain(NBTDouble(128D))
   }
-  test("nbtDouble should parse a double followed by d") {
-    val string = "128D"
+
+  test("nbtDouble should parse a decimal without the D") {
+    val string = "128.256D"
     val parsed = parse(string, MojangsonParser.nbtDouble(_))
-    parsed should contain(NBTDouble(128D))
+    parsed should contain(NBTDouble(128.256D))
   }
-  test("nbtDouble should fail without the d or D") {
+
+  test("nbtDouble should fail to parse a whole number without the D") {
     val string = "128"
     val parsed = parse(string, MojangsonParser.nbtDouble(_))
     parsed shouldNot be(successful)
   }
 
+  test("nbtByteArray should parse arrays prefixed with B;") {
+    val string = "[B;1,2,3]"
+    val parsed = parse(string, MojangsonParser.nbtByteArray(_))
+    parsed should contain(NBTByteArray(Vector(1, 2, 3)))
+  }
+
+  test("nbtIntArray should parse arrays prefixed with I;") {
+    val string = "[I;1,2,3]"
+    val parsed = parse(string, MojangsonParser.nbtIntArray(_))
+    parsed should contain(NBTIntArray(Vector(1, 2, 3)))
+  }
+
+  test("nbtLongArray should parse arrays prefixed with L;") {
+    val string = "[L;1,2,3]"
+    val parsed = parse(string, MojangsonParser.nbtLongArray(_))
+    parsed should contain(NBTLongArray(Vector(1, 2, 3)))
+  }
+
   test("nbtNamedTag should parse a tagname, followed by a colon and then a tag") {
     forAll(genNbt, Gen.alphaNumStr) { (nbtTag: NBTTag, tagName: String) =>
-      whenever(tagNameValid(tagName) && validMojangsonTag(nbtTag)) {
+      whenever(tagNameValid(tagName)) {
         val string = s"$tagName:${Mojangson.serialize(nbtTag)}"
         val parsed = parse(string, MojangsonParser.nbtNamedTag(_))
         parsed should contain((tagName, nbtTag))
@@ -214,23 +220,21 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
 
   test("indexedTag should parse a tagname, followed by a colon and then a tag") {
     forAll(genNbt, Gen.posNum[Int]) { (nbtTag, tagIndex) =>
-      whenever(tagIndex >= 0 && validMojangsonTag(nbtTag)) {
+      whenever(tagIndex >= 0) {
         val string = s"$tagIndex:${Mojangson.serialize(nbtTag)}"
         val parsed = parse(string, MojangsonParser.indexedTag(_))
-        parsed should contain((tagIndex, nbtTag))
+        parsed should contain((Some(tagIndex), nbtTag))
       }
     }
   }
 
   //Last stand. Just making sure that nothing bad gets through
   test("nbtTag should parse any nbt") {
-    implicit val generatorDrivenConfig = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
+    implicit val generatorDrivenConfig: PropertyCheckConfiguration = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
     forAll { nbtTag: NBTTag =>
-      whenever(validMojangsonTag(nbtTag)) {
-        val string = Mojangson.serialize(nbtTag)
-        val parsed = parse(string, MojangsonParser.nbtTag(_))
-        parsed should contain(nbtTag)
-      }
+      val string = Mojangson.serialize(nbtTag)
+      val parsed = parse(string, MojangsonParser.nbtTag(_))
+      parsed should contain(nbtTag)
     }
   }
 
