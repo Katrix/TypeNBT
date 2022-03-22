@@ -1,25 +1,27 @@
 lazy val commonSettings = Seq(
-  organization := "net.katsstuff",
-  version := "0.5.1",
-  scalaVersion := "2.13.4",
-  crossScalaVersions := Seq("2.12.8", scalaVersion.value, "3.0.0-M3"),
+  organization       := "net.katsstuff",
+  version            := "0.5.2",
+  scalaVersion       := "2.13.8",
+  crossScalaVersions := Seq("2.12.8", scalaVersion.value, "3.1.1"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
-    "-unchecked",
-    "-Xlint",
-    "-Ywarn-dead-code"
+    "-unchecked"
   ),
-  scalacOptions ++= (
-    if (scalaVersion.value.startsWith("2.12"))
-      Seq("-Yno-adapted-args", "-Ywarn-unused-import", "-Ypartial-unification", "-language:higherKinds")
+  scalacOptions ++= {
+    val version = scalaVersion.value
+
+    if (version.startsWith("2.12"))
+      Seq("-Xlint", "-Yno-adapted-args", "-Ywarn-unused-import", "-Ypartial-unification", "-language:higherKinds")
+    else if (version.startsWith("2.13"))
+      Seq("-Xlint", "-Ywarn-dead-code")
     else Nil
-  )
+  }
 )
 
 lazy val publishSettigs = Seq(
-  publishMavenStyle := true,
-  publishArtifact in Test := false,
+  publishMavenStyle      := true,
+  Test / publishArtifact := false,
   pomIncludeRepository := { _ =>
     false
   },
@@ -49,8 +51,8 @@ lazy val publishSettigs = Seq(
 )
 
 lazy val noPublishSettings = Seq(
-  publish := {},
-  publishLocal := {},
+  publish         := {},
+  publishLocal    := {},
   publishArtifact := false
 )
 
@@ -59,10 +61,13 @@ lazy val typenbt = crossProject(JSPlatform, JVMPlatform)
   .settings(
     commonSettings,
     publishSettigs,
-    name := "typenbt",
-    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.3" % Test,
+    name                                    := "typenbt",
+    libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.11" % Test,
     description := "TypeNBT is a NBT library that let's the user focus on the data, not how it's represented",
-    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    libraryDependencies ++= {
+      if (scalaVersion.value.startsWith("2.")) Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided)
+      else Nil
+    }
   )
 
 lazy val typenbtExtra = crossProject(JSPlatform, JVMPlatform)
@@ -71,9 +76,9 @@ lazy val typenbtExtra = crossProject(JSPlatform, JVMPlatform)
   .settings(
     commonSettings,
     publishSettigs,
-    name := "typenbt-extra",
-    description := "A module for TypeNBT which offers extra functionality using Shapeless",
-    libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.3"
+    name                                  := "typenbt-extra",
+    description                           := "A module for TypeNBT which offers extra functionality using Shapeless",
+    libraryDependencies += "com.chuusai" %%% "shapeless" % "2.3.8"
   )
 
 lazy val typenbtMojangson = crossProject(JSPlatform, JVMPlatform)
@@ -82,12 +87,12 @@ lazy val typenbtMojangson = crossProject(JSPlatform, JVMPlatform)
   .settings(
     commonSettings,
     publishSettigs,
-    name := "typenbt-mojangson",
+    name                                        := "typenbt-mojangson",
     libraryDependencies += "com.lihaoyi"       %%% "fastparse"       % "2.2.4",
-    libraryDependencies += "org.scalatest"     %%% "scalatest"       % "3.1.1" % Test,
-    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-14" % "3.1.1.1" % Test,
-    libraryDependencies += "org.scalacheck"    %%% "scalacheck"      % "1.14.3" % Test,
-    description := "The mojangson module for TypeNBT lets user parse and print mojangson",
+    libraryDependencies += "org.scalatest"     %%% "scalatest"       % "3.2.11"   % Test,
+    libraryDependencies += "org.scalatestplus" %%% "scalacheck-1-15" % "3.2.11.0" % Test,
+    libraryDependencies += "org.scalacheck"    %%% "scalacheck"      % "1.15.4"   % Test,
+    description := "The mojangson module for TypeNBT lets user parse and print mojangson"
   )
 
 lazy val typenbtJVM = typenbt.jvm
@@ -108,7 +113,7 @@ lazy val rootTypeNBT = project
   .settings(
     commonSettings,
     noPublishSettings,
-    //Fixes repository not specified error
+    // Fixes repository not specified error
     publishTo := {
       val nexus = "https://oss.sonatype.org/"
       if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
