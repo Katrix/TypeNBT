@@ -20,9 +20,9 @@
  */
 package net.katsstuff
 
-import java.util.UUID
-
 import scala.language.implicitConversions
+
+import java.util.UUID
 
 package object typenbt {
 

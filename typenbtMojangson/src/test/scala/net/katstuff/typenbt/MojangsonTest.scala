@@ -36,10 +36,14 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
 
   val successful: BeMatcher[Parsed[_]] =
     BeMatcher[Parsed[_]] { parsed =>
-      MatchResult(parsed match {
-        case Parsed.Success(_, _) => true
-        case Parsed.Failure(_, _, _) => false
-      }, "Parser was not successful", "Parser was successful")
+      MatchResult(
+        parsed match {
+          case Parsed.Success(_, _)    => true
+          case Parsed.Failure(_, _, _) => false
+        },
+        "Parser was not successful",
+        "Parser was successful"
+      )
     }
 
   implicit def parseResultContainer[A: Equality]: Containing[Parsed[A]] = new Containing[Parsed[A]] {
@@ -48,7 +52,6 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
         case Parsed.Failure(_, _, _)      => false
         case Parsed.Success(parsedVal, _) => implicitly[Equality[A]].areEqual(parsedVal, element)
       }
-
 
     override def containsOneOf(container: Parsed[A], elements: collection.Seq[Any]): Boolean = {
       val equal = implicitly[Equality[A]]
@@ -113,8 +116,8 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
         val stringNumber = number.toString.tail
         val parsed       = parse(stringNumber, MojangsonParser.floatingPoint(_))
         parsed should contain(number)
-        //parsed shouldBe 'success
-        //Math.abs(parsed.get.value - number) should be < 1e-7
+        // parsed shouldBe 'success
+        // Math.abs(parsed.get.value - number) should be < 1e-7
       }
     }
   }
@@ -228,9 +231,10 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
     }
   }
 
-  //Last stand. Just making sure that nothing bad gets through
+  // Last stand. Just making sure that nothing bad gets through
   test("nbtTag should parse any nbt") {
-    implicit val generatorDrivenConfig: PropertyCheckConfiguration = self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
+    implicit val generatorDrivenConfig: PropertyCheckConfiguration =
+      self.generatorDrivenConfig.copy(minSuccessful = PosInt(200))
     forAll { nbtTag: NBTTag =>
       val string = Mojangson.serialize(nbtTag)
       val parsed = parse(string, MojangsonParser.nbtTag(_))
@@ -238,7 +242,7 @@ class MojangsonTest extends AnyFunSuite with Matchers with ScalaCheckDrivenPrope
     }
   }
 
-  //Currently fails
+  // Currently fails
   test("All parsers should ignore whitespace before a new combinator") {
     val tag    = "{ }"
     val parsed = parse(tag, MojangsonParser.nbtTag(_))

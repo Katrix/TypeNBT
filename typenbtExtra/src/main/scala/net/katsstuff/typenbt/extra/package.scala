@@ -10,26 +10,26 @@ package object extra {
   implicit class ExtraNBTCompoundOps(private val compound: NBTCompound) extends AnyVal {
 
     /**
-      * Creates a new [[NBTCompound]] with the hlist appended.
-      * If there exists duplicate values it uses the second one.
+      * Creates a new [[NBTCompound]] with the hlist appended. If there exists
+      * duplicate values it uses the second one.
       */
     def ++[Input <: HList, NbtMapped <: HList, Traversed](hList: Input)(
-      implicit mapper: Mapper.Aux[tupleToNBT.type, Input, NbtMapped],
-      toTraversable: ToTraversable.Aux[NbtMapped, Seq, Traversed],
-      evidence: Traversed <:< NamedTag
+        implicit mapper: Mapper.Aux[tupleToNBT.type, Input, NbtMapped],
+        toTraversable: ToTraversable.Aux[NbtMapped, Seq, Traversed],
+        evidence: Traversed <:< NamedTag
     ): NBTCompound = compound.merge(NBTCompound.fromHList(hList))
   }
 
   implicit class ExtraNBTCompoundObjOps(private val compound: NBTCompound.type) extends AnyVal {
 
     def fromHList[Input <: HList, NbtMapped <: HList, Traversed](elements: Input)(
-      implicit mapper: Mapper.Aux[tupleToNBT.type, Input, NbtMapped],
-      toTraversable: ToTraversable.Aux[NbtMapped, Seq, Traversed],
-      evidence: Traversed <:< NamedTag
+        implicit mapper: Mapper.Aux[tupleToNBT.type, Input, NbtMapped],
+        toTraversable: ToTraversable.Aux[NbtMapped, Seq, Traversed],
+        evidence: Traversed <:< NamedTag
     ) = NBTCompound(elements.map(tupleToNBT).to[Seq].toMap)
   }
 
-  //noinspection ConvertExpressionToSAM
+  // noinspection ConvertExpressionToSAM
   implicit def mapDeser[ElemRepr, ElemNBT <: NBTTag](
       implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
       typeable: Typeable[ElemNBT]
@@ -43,7 +43,7 @@ package object extra {
     )
   }
 
-  //noinspection ConvertExpressionToSAM
+  // noinspection ConvertExpressionToSAM
   implicit def mapSafeDeser[ElemRepr, ElemNBT <: NBTTag](
       implicit deser: NBTDeserializer[ElemRepr, ElemNBT],
       typeable: Typeable[ElemNBT]

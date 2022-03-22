@@ -1,5 +1,5 @@
-import fastparse._
 import fastparse.MultiLineWhitespace._
+import fastparse._
 import net.katsstuff.typenbt._
 
 object UsingMojangson extends App {

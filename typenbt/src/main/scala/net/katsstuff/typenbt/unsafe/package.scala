@@ -27,7 +27,7 @@ package object unsafe {
   val AnyTagType: NBTType.AnyTagType.type = NBTType.AnyTagType
   type AnyTagType = NBTType[Any, AnyTag]
 
-  //A raw list with no checks. If used wrong, this WILL cause problems
+  // A raw list with no checks. If used wrong, this WILL cause problems
   val TAG_List: NBTType.TAG_List.type = NBTType.TAG_List
 
   val TagList: NBTType.TAG_List.type = TAG_List

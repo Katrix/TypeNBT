@@ -18,7 +18,7 @@ class NBTDerivation(val c: blackbox.Context) {
     typeOf[Double]           -> typeOf[NBTDouble],
     typeOf[IndexedSeq[Byte]] -> typeOf[NBTByteArray],
     typeOf[String]           -> typeOf[NBTString],
-    //typeOf[Seq] -> typeOf[NBTList],
+    // typeOf[Seq] -> typeOf[NBTList],
     typeOf[Map[String, _]]   -> compoundTpe,
     typeOf[IndexedSeq[Int]]  -> typeOf[NBTIntArray],
     typeOf[IndexedSeq[Long]] -> typeOf[NBTLongArray]
@@ -109,7 +109,7 @@ class NBTDerivation(val c: blackbox.Context) {
 
     val res = c.Expr[NBTView[A, NBTCompound]](resTree)
 
-    //c.info(c.enclosingPosition, showCode(resTree), force = false)
+    // c.info(c.enclosingPosition, showCode(resTree), force = false)
 
     res
   }
@@ -163,7 +163,7 @@ class NBTDerivation(val c: blackbox.Context) {
 
     val res = c.Expr[NBTView[A, NBTCompound]](resTree)
 
-    //c.info(c.enclosingPosition, showCode(resTree), force = false)
+    // c.info(c.enclosingPosition, showCode(resTree), force = false)
 
     res
   }

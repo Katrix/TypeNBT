@@ -25,27 +25,23 @@ import java.util.UUID
 /**
   * A typeclass responsible for serializing values into NBT.
   *
-  * @tparam Repr The type it serializes.
-  * @tparam NBT The resulting NBT type.
+  * @tparam Repr
+  *   The type it serializes.
+  * @tparam NBT
+  *   The resulting NBT type.
   */
 //noinspection ConvertExpressionToSAM
 trait NBTSerializer[-Repr, +NBT <: NBTTag] { self =>
 
-  /**
-    * Convert a value to NBT.
-    */
+  /** Convert a value to NBT. */
   def to(v: Repr): NBT
 
-  /**
-    * Create a new serializer that uses this serializer as a stepping stone.
-    */
+  /** Create a new serializer that uses this serializer as a stepping stone. */
   def contramap[NewRepr](f: NewRepr => Repr): NBTSerializer[NewRepr, NBT] = new NBTSerializer[NewRepr, NBT] {
     override def to(v: NewRepr): NBT = self.to(f(v))
   }
 
-  /**
-    * Maps the NBT that resulted from using this serializer.
-    */
+  /** Maps the NBT that resulted from using this serializer. */
   def mapNbt[NewNBT <: NBTTag](f: NBT => NewNBT): NBTSerializer[Repr, NewNBT] = new NBTSerializer[Repr, NewNBT] {
     override def to(v: Repr): NewNBT = f(self.to(v))
   }
@@ -112,26 +108,25 @@ trait ExtraLowPriorityNBTSerializers {
 /**
   * A typeclass responsible for deserializing values from NBT.
   *
-  * @tparam Repr The type it deserialize to.
-  * @tparam NBT The original NBT type.
+  * @tparam Repr
+  *   The type it deserialize to.
+  * @tparam NBT
+  *   The original NBT type.
   */
 //noinspection ConvertExpressionToSAM
 trait NBTDeserializer[+Repr, -NBT <: NBTTag] { self =>
 
-  /**
-    * Convert a value from NBT.
-    */
+  /** Convert a value from NBT. */
   def from(arg: NBT): Option[Repr]
 
-  /**
-    * Map the result of running this deserializer.
-    */
+  /** Map the result of running this deserializer. */
   def map[NewRepr](f: Repr => NewRepr): NBTDeserializer[NewRepr, NBT] = new NBTDeserializer[NewRepr, NBT] {
     override def from(arg: NBT): Option[NewRepr] = self.from(arg).map(f)
   }
 
   /**
-    * Map the result of running this deserializer using a function that can fail.
+    * Map the result of running this deserializer using a function that can
+    * fail.
     */
   def optMap[NewRepr](f: Repr => Option[NewRepr]): NBTDeserializer[NewRepr, NBT] = new NBTDeserializer[NewRepr, NBT] {
     override def from(arg: NBT): Option[NewRepr] = self.from(arg).flatMap(f)
@@ -197,9 +192,7 @@ trait SafeNBTDeserializer[+Repr, -NBT <: NBTTag] extends NBTDeserializer[Repr, N
 
   override def from(arg: NBT): Option[Repr] = Some(fromSafe(arg))
 
-  /**
-    * A safer version of [[NBTDeserializer.from]] that can't fail.
-    */
+  /** A safer version of [[NBTDeserializer.from]] that can't fail. */
   def fromSafe(arg: NBT): Repr
 
   override def map[NewRepr](f: Repr => NewRepr): SafeNBTDeserializer[NewRepr, NBT] =
@@ -259,24 +252,31 @@ trait ExtraLowPrioritySafeNBTDeserializers {
 
 /**
   * A NBTView is a sort of Prism allowing you to see and modify NBT easier.
-  * @tparam Repr The type it represents
-  * @tparam NBT The corresponding nbt type
+  * @tparam Repr
+  *   The type it represents
+  * @tparam NBT
+  *   The corresponding nbt type
   */
 trait NBTView[Repr, NBT <: NBTTag] extends NBTSerializer[Repr, NBT] with NBTDeserializer[Repr, NBT] { self =>
 
   /**
-    * Modifies a nbt in value form before returning a new NBT.
-    * Thew two types of NBT does not have to be the same.
+    * Modifies a nbt in value form before returning a new NBT. Thew two types of
+    * NBT does not have to be the same.
     *
-    * @example {{{
-    *   val stringNbt: Option[NBTString] = NBTView.TagInt.modify(NBTInt(5))(_.toString)
-    * }}}
-    * @param nbt The NBT to modify
-    * @param f The function to apply to the NBT
-    * @param newView A view providing a way to get back to the world
-    *                of NBTs after the modification.
-    * @tparam NewRepr The new value type
-    * @tparam NewNBT The new NBT type
+    * @example
+    *   {{{ val stringNbt: Option[NBTString] =
+    *   NBTView.TagInt.modify(NBTInt(5))(_.toString) }}}
+    * @param nbt
+    *   The NBT to modify
+    * @param f
+    *   The function to apply to the NBT
+    * @param newView
+    *   A view providing a way to get back to the world of NBTs after the
+    *   modification.
+    * @tparam NewRepr
+    *   The new value type
+    * @tparam NewNBT
+    *   The new NBT type
     */
   def modify[NewRepr, NewNBT <: NBTTag](
       nbt: NBT
@@ -333,16 +333,18 @@ trait LowPriorityNBTViews {
 }
 
 /**
-  * A mixin view that provides extra methods allowing it to make a normal type look
-  * like it has an nbt type.
+  * A mixin view that provides extra methods allowing it to make a normal type
+  * look like it has an nbt type.
   *
   * Example:
   * {{{
   *   NBTBoolean(false)
   * }}}
   *
-  * @tparam Repr The type it represents
-  * @tparam NBT The corresponding nbt type
+  * @tparam Repr
+  *   The type it represents
+  * @tparam NBT
+  *   The corresponding nbt type
   */
 trait NBTViewCaseLike[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] { self =>
   def apply(v: Repr): NBT             = to(v)
@@ -383,8 +385,10 @@ object NBTViewCaseLike {
 /**
   * A safer type of NBTView where [[NBTView.from]] can't fail.
   *
-  * @tparam Repr The type it represents
-  * @tparam NBT The corresponding nbt type
+  * @tparam Repr
+  *   The type it represents
+  * @tparam NBT
+  *   The corresponding nbt type
   */
 trait SafeNBTView[Repr, NBT <: NBTTag] extends NBTView[Repr, NBT] with SafeNBTDeserializer[Repr, NBT] { self =>
 
@@ -418,9 +422,7 @@ object SafeNBTView {
   }
 }
 
-/**
-  * A safe variant of the case like mixin.
-  */
+/** A safe variant of the case like mixin. */
 trait SafeNBTViewCaseLike[Repr, NBT <: NBTTag] extends SafeNBTView[Repr, NBT] with NBTViewCaseLike[Repr, NBT] { self =>
 
   override def imap[NewRepr](f: Repr => NewRepr, g: NewRepr => Repr): SafeNBTViewCaseLike[NewRepr, NBT] =
@@ -451,8 +453,8 @@ object SafeNBTViewCaseLike {
 }
 
 /**
-  * A special type of [[NBTView]] that represents a real nbt type.
-  * It's also both safe and contains the numerical id of the type.
+  * A special type of [[NBTView]] that represents a real nbt type. It's also
+  * both safe and contains the numerical id of the type.
   */
 sealed trait NBTType[Repr, NBT <: NBTTag.Aux[Repr]] extends SafeNBTView[Repr, NBT] {
   def id: Byte
@@ -479,9 +481,7 @@ object NBTType {
   implicit val TagIntArray: NBTType[IndexedSeq[Int], NBTIntArray]     = TAG_Int_Array
   implicit val TagLongArray: NBTType[IndexedSeq[Long], NBTLongArray]  = TAG_Long_Array
 
-  /**
-    * Convert a numerical id to a [[NBTType]]
-    */
+  /** Convert a numerical id to a [[NBTType]] */
   def fromId(i: Int): Option[NBTType.CovarObj[_]] = i match {
     case 0  => Some(TagEnd)
     case 1  => Some(TagByte)
@@ -504,7 +504,7 @@ object NBTType {
     override def to(v: Any): NBTTag.Aux[Any] = throw new IllegalStateException("Tried to construct any tag")
   }
 
-  //Official names for them
+  // Official names for them
   case object TAG_End extends NBTType[Nothing, NBTEnd] {
     override def id: Byte                           = 0
     override def to(v: Nothing): NBTEnd             = throw new IllegalStateException("Tried to construct end tag")
@@ -571,7 +571,7 @@ object NBTType {
   ): NBTListType[ElemRepr, ElemNBT] =
     new NBTListType[ElemRepr, ElemNBT](elementType)
 
-  //A raw list with no checks. If used wrong, this WILL cause problems
+  // A raw list with no checks. If used wrong, this WILL cause problems
   private[typenbt] case object TAG_List extends NBTListType[Any, NBTTag.Aux[Any]](AnyTagType)
 }
 

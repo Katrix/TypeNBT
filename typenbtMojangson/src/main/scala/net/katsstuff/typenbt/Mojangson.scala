@@ -20,14 +20,12 @@
  */
 package net.katsstuff.typenbt
 
-import fastparse._
 import fastparse.MultiLineWhitespace._
+import fastparse._
 
 object Mojangson {
 
-  /**
-		* Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]]
-		*/
+  /** Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]] */
   def deserialize(mojangson: String, verbose: Boolean = false): Parsed[NBTCompound] =
     parse(mojangson, MojangsonParser.wholeNbt(_), verbose)
 
@@ -50,7 +48,9 @@ object Mojangson {
     // Represents the regex [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?
     def floatingPoint[_: P]: P[BigDecimal] =
       P(
-        CharIn("+\\-").? ~ (&(CharsWhileIn("0-9") ~ ".") ~ CharsWhileIn("0-9")).? ~ ".".? ~ nNumber ~ (CharIn("eE") ~ CharIn(
+        CharIn("+\\-").? ~ (&(CharsWhileIn("0-9") ~ ".") ~ CharsWhileIn("0-9")).? ~ ".".? ~ nNumber ~ (CharIn(
+          "eE"
+        ) ~ CharIn(
           "+\\-"
         ).? ~ nNumber).?
       ).!.map(BigDecimal(_)).opaque("Floating point number")
@@ -59,7 +59,7 @@ object Mojangson {
 
     def colon[_: P]: P[Unit]     = P(":")
     def comma[_: P]: P[Unit]     = P(",")
-    def tagName[_: P]: P[String] = P(CharsWhile(c => !":{}[]".contains(c))).!.opaque("Tag name") //Better way?
+    def tagName[_: P]: P[String] = P(CharsWhile(c => !":{}[]".contains(c))).!.opaque("Tag name") // Better way?
     def tagIndex[_: P]: P[Int]   = P(nNumber).!.map(_.toInt).opaque("Tag index")
 
     def compoundStart[_: P]: P[Unit] = P("{").opaque("Compound start")
@@ -81,8 +81,10 @@ object Mojangson {
       P(
         (zNumber.map(BigDecimal(_)) ~ doubleEnd) |
           (zNumber ~ floatingPoint ~ doubleEnd.?)
-            .map(t => BigDecimal(t._1) + (math.signum(t._1.toInt) * t._2)) | //Parse whole part followed by floating part
-          (!zNumber ~ floatingPoint ~ doubleEnd.?) //Only used for more exotic stuff
+            .map(t =>
+              BigDecimal(t._1) + (math.signum(t._1.toInt) * t._2)
+            ) |                                    // Parse whole part followed by floating part
+          (!zNumber ~ floatingPoint ~ doubleEnd.?) // Only used for more exotic stuff
       ).map(n => NBTDouble(n.toDouble))
     def nbtInt[_: P]: P[NBTInt] = P(zNumber.map(n => NBTInt(n.toInt)))
 
@@ -106,7 +108,7 @@ object Mojangson {
     def indexedTag[_: P]: P[IndexedTag] = P((tagIndex ~ colon).? ~ nbtTag)
     def nbtList[_: P]: P[NBTList[_, _ <: NBTTag]] =
       P(listStart ~ indexedTag.rep(sep = comma./) ~/ listEnd)
-      /*
+        /*
         .filter {
           case seq if seq.nonEmpty =>
             val head   = seq.head._2
@@ -128,16 +130,14 @@ object Mojangson {
 
             NBTList[Any, unsafe.AnyTag](withType)(nbtType)
           case _ =>
-            NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] //We use byte if there are no elements
+            NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] // We use byte if there are no elements
         }
         .opaque("NBT List")
 
     def wholeNbt[_: P]: P[NBTCompound] = P(nbtCompound ~ End)
   }
 
-  /**
-		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson.
-		*/
+  /** Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson. */
   def serialize(tag: NBTTag, indexedList: Boolean = false): String = tag match {
     case NBTByte(b)          => s"${b}b"
     case NBTShort(s)         => s"${s}s"
@@ -171,28 +171,31 @@ object Mojangson {
 
   private def toMojangsonList(list: Seq[NBTTag], indexedList: Boolean): String =
     if (indexedList) {
-      toMojangsonIterable("[", "]", list.zipWithIndex) {
-        case (nbt, index) => s"$index:${serialize(nbt, indexedList)}"
+      toMojangsonIterable("[", "]", list.zipWithIndex) { case (nbt, index) =>
+        s"$index:${serialize(nbt, indexedList)}"
       }
     } else {
       toMojangsonIterable("[", "]", list)(serialize(_, indexedList))
     }
 
   private def toMojangsonCompound(tags: Map[String, NBTTag], indexedList: Boolean): String =
-    toMojangsonIterable("{", "}", tags) {
-      case (name, tag) => s"$name:${serialize(tag, indexedList)}"
+    toMojangsonIterable("{", "}", tags) { case (name, tag) =>
+      s"$name:${serialize(tag, indexedList)}"
     }
 
   private def toMojangsonArray(arrayPrefix: String, values: Seq[_]): String =
     toMojangsonIterable(s"[$arrayPrefix;", "]", values)(_.toString)
 
   /**
-		* Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson with indentation
-		*
-		* @param tag The tag to convert
-		* @param indentLevel How many indent characters to insert per level
-		* @param indentChar The indent character to use
-		*/
+    * Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson with indentation
+    *
+    * @param tag
+    *   The tag to convert
+    * @param indentLevel
+    *   How many indent characters to insert per level
+    * @param indentChar
+    *   The indent character to use
+    */
   def serializeIndent(tag: NBTTag, indentLevel: Int = 1, indentChar: Char = '	', indexedList: Boolean): String = {
     tag match {
       case NBTList(list)      => toMojangsonIndentList(list, indentLevel, indentChar, indexedList)
@@ -239,8 +242,8 @@ object Mojangson {
       indexedList: Boolean
   ): String =
     if (indexedList) {
-      toMojangsonIndentIterable("[", "]", indentLevel, indentChar, list.zipWithIndex) {
-        case (tag, index) => s"$index:${serializeIndent(tag, indentLevel, indentChar, indexedList)}"
+      toMojangsonIndentIterable("[", "]", indentLevel, indentChar, list.zipWithIndex) { case (tag, index) =>
+        s"$index:${serializeIndent(tag, indentLevel, indentChar, indexedList)}"
       }
     } else {
       toMojangsonIndentIterable("[", "]", indentLevel, indentChar, list)(
@@ -254,8 +257,8 @@ object Mojangson {
       indentChar: Char,
       indexedList: Boolean
   ): String =
-    toMojangsonIndentIterable("{", "}", indentLevel, indentChar, tags) {
-      case (name, tag) => s"$name:${serializeIndent(tag, indentLevel, indentChar, indexedList)}"
+    toMojangsonIndentIterable("{", "}", indentLevel, indentChar, tags) { case (name, tag) =>
+      s"$name:${serializeIndent(tag, indentLevel, indentChar, indexedList)}"
     }
 
   private def toMojangsonIndentArray(values: Seq[_], prefix: String, indentLevel: Int, indentChar: Char): String =

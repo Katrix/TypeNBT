@@ -7,7 +7,7 @@ object ImplicitCreation extends App {
   Seq(1.nbt, 2.nbt, 3.nbt).nbt
   Map("Hi" -> 2, "Int" -> 5).nbt
 
-  //Custom types too
+  // Custom types too
   false.nbt
   UUID.randomUUID().nbt
 }

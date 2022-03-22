@@ -8,7 +8,7 @@ object ExplicitCreation extends App {
 
   NBTList(Seq(NBTInt(5), NBTInt(3)))
 
-  //Custom types too
+  // Custom types too
   NBTBoolean(false)
   NBTUUID(UUID.randomUUID())
 

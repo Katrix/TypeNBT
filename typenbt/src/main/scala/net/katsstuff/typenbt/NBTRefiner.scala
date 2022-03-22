@@ -1,8 +1,6 @@
 package net.katsstuff.typenbt
 
-/**
-  * A typeclass that helps matching on a raw [[NBTTag]].
-  */
+/** A typeclass that helps matching on a raw [[NBTTag]]. */
 trait NBTRefiner[+NBT] {
 
   def refine(tag: NBTTag): Option[NBT]
@@ -93,7 +91,7 @@ object NBTRefiner {
     }
   }
 
-  //A bit hacky but hopefully it's better than nothing
+  // A bit hacky but hopefully it's better than nothing
   implicit def listRefiner[ElemRepr, ElemNBT <: NBTTag.Aux[ElemRepr]](
       implicit listType: NBTListType[ElemRepr, ElemNBT]
   ): NBTRefiner[NBTList[ElemRepr, ElemNBT]] = new NBTRefiner[NBTList[ElemRepr, ElemNBT]] {

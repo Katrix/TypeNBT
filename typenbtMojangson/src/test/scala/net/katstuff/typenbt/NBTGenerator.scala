@@ -20,11 +20,10 @@
  */
 package net.katstuff.typenbt
 
+import net.katsstuff.typenbt._
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen._
 import org.scalacheck._
-
-import net.katsstuff.typenbt._
 
 trait NBTGenerator {
 
