@@ -1,8 +1,8 @@
 lazy val commonSettings = Seq(
   organization := "net.katsstuff",
-  version      := "0.5.2",
+  version      := "0.6.0",
   scalaVersion := "2.13.8",
-  crossScalaVersions := Seq("2.12.14", scalaVersion.value, "3.1.1"),
+  crossScalaVersions := Seq("2.12.14", scalaVersion.value, "3.1.0"),
   scalacOptions ++= Seq(
     "-deprecation",
     "-feature",
