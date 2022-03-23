@@ -327,10 +327,14 @@ object NBTView extends LowPriorityNBTViews {
       implicit elementType: NBTType[ElemRepr, ElemNBT]
   ): NBTView[Seq[ElemNBT], NBTList[ElemRepr, ElemNBT]] = NBTType.listType[ElemRepr, ElemNBT]
 }
-trait LowPriorityNBTViews {
+trait LowPriorityNBTViews extends NBTViewCompoundCompat {
   implicit val BooleanView: NBTView[Boolean, NBTByte] = NBTBoolean
   implicit val UUIDView: NBTView[UUID, NBTCompound]   = NBTUUID
 }
+
+/** An extra trait so Scala's derives has something to latch on to. */
+trait NBTViewCompound[A] extends NBTView[A, NBTCompound]
+object NBTViewCompound   extends NBTViewCompoundCompat
 
 /**
   * A mixin view that provides extra methods allowing it to make a normal type
@@ -482,7 +486,7 @@ object NBTType {
   implicit val TagLongArray: NBTType[IndexedSeq[Long], NBTLongArray]  = TAG_Long_Array
 
   /** Convert a numerical id to a [[NBTType]] */
-  def fromId(i: Int): Option[NBTType.CovarObj[_]] = i match {
+  def fromId(i: Int): Option[NBTType[_, _ <: NBTTag]] = i match {
     case 0  => Some(TagEnd)
     case 1  => Some(TagByte)
     case 2  => Some(TagShort)

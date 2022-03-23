@@ -55,7 +55,7 @@ trait NBTGenerator {
       implicit nbtType: NBTListType[Repr, NBT]
   ): Gen[NBTList[Repr, NBT]] =
     for {
-      l <- oneOf(Gen.const(NBTList()), nonEmptyNbtList[Repr, NBT](NBTList()))
+      l <- oneOf(Gen.const(NBTList()(nbtType)), nonEmptyNbtList[Repr, NBT](NBTList()))
     } yield l
 
   def nonEmptyNbtList[Repr, NBT <: NBTTag.Aux[Repr]: Arbitrary](

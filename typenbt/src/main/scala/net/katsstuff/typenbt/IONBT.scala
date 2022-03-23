@@ -171,6 +171,7 @@ object IONBT {
       case compound: NBTCompound   => writeCompound(stream, compound)
       case NBTIntArray(intArray)   => writeIntArray(stream, intArray.toArray)
       case NBTLongArray(longArray) => writeLongArray(stream, longArray.toArray)
+      case _: NBTEnd               => Failure(new Exception("Unexpected NBTEnd"))
     }
 
   @tailrec
@@ -182,12 +183,12 @@ object IONBT {
         readString(stream) match {
           case Success(name) =>
             readTag(stream, nbtType) match {
-              case Success(tag)                   => readCompound(stream, compound.set(name, tag))
-              case f: Failure[Nothing @unchecked] => f
+              case Success(tag) => readCompound(stream, compound.set(name, tag))
+              case Failure(e)   => Failure(e)
             }
-          case f: Failure[Nothing @unchecked] => f
+          case Failure(e) => Failure(e)
         }
-      case f: Failure[Nothing @unchecked] => f
+      case Failure(e) => Failure(e)
     }
   }
 
@@ -203,9 +204,8 @@ object IONBT {
       nbtType <- readType(stream)
       listType = new NBTListType(nbtType)
       length <- Try(stream.readInt())
-      res <- (0 until length).foldLeft(Try(NBTList()(listType))) {
-        case (Success(list), _)  => readTag(stream, nbtType).map(read => list :+ read)
-        case (f @ Failure(_), _) => f
+      res <- (0 until length).foldLeft(Try(NBTList()(listType))) { (acc, _) =>
+        acc.flatMap(list => readTag(stream, nbtType).map(read => list :+ read))
       }
     } yield res
 

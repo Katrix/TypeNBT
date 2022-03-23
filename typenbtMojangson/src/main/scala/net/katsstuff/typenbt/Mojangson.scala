@@ -20,94 +20,115 @@
  */
 package net.katsstuff.typenbt
 
-import fastparse.MultiLineWhitespace._
-import fastparse._
+import cats.parse.{Numbers, Parser0, Rfc5234, Parser => P}
 
 object Mojangson {
 
   /** Parse mojangson into a [[net.katsstuff.typenbt.NBTTag]] */
-  def deserialize(mojangson: String, verbose: Boolean = false): Parsed[NBTCompound] =
-    parse(mojangson, MojangsonParser.wholeNbt(_), verbose)
+  def deserialize(mojangson: String): Either[P.Error, NBTCompound] =
+    MojangsonParser.wholeNbt.parseAll(mojangson)
 
   object MojangsonParser {
 
     type NamedTag   = (String, NBTTag)
     type IndexedTag = (Option[Int], NBTTag)
 
-    def nNumber[_: P]: P[Unit] = P(CharsWhileIn("0-9"))
+    val optionalWhitespace: Parser0[Unit] = (Rfc5234.wsp | Rfc5234.cr | Rfc5234.lf).rep0.void
+
+    def withOptionalWhitespace[A](p: P[A]): P[A] =
+      optionalWhitespace.soft.with1 *> p <* optionalWhitespace
 
     // Represents the regex \"(\\.|[^\\"])*\"
-    def stringLiteral[_: P](quotes: Char): P[String] =
-      P(
-        quotes.toString ~ (("\\" ~ AnyChar) | CharPred(c => c != '\\' && c != quotes)).rep ~ quotes.toString
-      ).!.map(_.replace("\\" + quotes, quotes.toString).replace("\\\\", "\\")).opaque("String literal")
+    def stringLiteral(quotes: Char): P[String] =
+      ((P.char('\\') ~ P.anyChar) | P.charWhere(c => c != '\\' && c != quotes)).rep0.with1
+        .surroundedBy(P.char(quotes))
+        .string
+        .map(_.replace("\\" + quotes, quotes.toString).replace("\\\\", "\\"))
+        .withContext("String literal")
 
-    def rawString[_: P]: P[String] =
-      P(CharsWhileIn("a-zA-Z0-9") ~ (" " ~ CharsWhile(c => c != ',' && c != ']' && c != '}', 1))).!
+    val rawString: P[String] =
+      ((Rfc5234.alpha | Numbers.digit).rep0.with1 ~ (P.char(' ') ~ P.charsWhile(c =>
+        c != ',' && c != ']' && c != '}'
+      ))).string
 
-    // Represents the regex [-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?
-    def floatingPoint[_: P]: P[BigDecimal] =
-      P(
-        CharIn("+\\-").? ~ (&(CharsWhileIn("0-9") ~ ".") ~ CharsWhileIn("0-9")).? ~ ".".? ~ nNumber ~ (CharIn(
-          "eE"
-        ) ~ CharIn(
-          "+\\-"
-        ).? ~ nNumber).?
-      ).!.map(BigDecimal(_)).opaque("Floating point number")
+    val floatingPoint: P[BigDecimal] = {
+      val sign        = P.charIn("+-").?
+      val fraction    = P.char('.') ~ Numbers.digits
+      val exponential = P.charIn("eE") ~ sign ~ Numbers.digits
 
-    def zNumber[_: P]: P[BigInt] = P("-".? ~ nNumber).!.map(BigInt(_)).opaque("Whole number")
+      (sign.with1 ~ fraction.orElse(Numbers.digits ~ fraction.?) ~ exponential.?).string
+        .map(BigDecimal(_))
+        .withContext("Floating point number")
+    }
 
-    def colon[_: P]: P[Unit]     = P(":")
-    def comma[_: P]: P[Unit]     = P(",")
-    def tagName[_: P]: P[String] = P(CharsWhile(c => !":{}[]".contains(c))).!.opaque("Tag name") // Better way?
-    def tagIndex[_: P]: P[Int]   = P(nNumber).!.map(_.toInt).opaque("Tag index")
+    val zNumber: P[BigInt] = Numbers.bigInt.withContext("Whole number")
 
-    def compoundStart[_: P]: P[Unit] = P("{").opaque("Compound start")
-    def compoundEnd[_: P]: P[Unit]   = P("}").opaque("Compound end")
-    def listStart[_: P]: P[Unit]     = P("[").opaque("List start")
-    def listEnd[_: P]: P[Unit]       = P("]").opaque("List end")
+    val colon: P[Unit]     = withOptionalWhitespace(P.char(':')).void
+    val comma: P[Unit]     = withOptionalWhitespace(P.char(',')).void
+    val tagName: P[String] = withOptionalWhitespace(P.charsWhile(c => !":{}[]".contains(c))).withContext("Tag name") // Better way?
+    val tagIndex: P[Int]   = withOptionalWhitespace(zNumber.map(_.toInt)).withContext("Tag index")
 
-    def byteEnd[_: P]: P[Unit]   = P(CharIn("bB")).opaque("Byte end")
-    def shortEnd[_: P]: P[Unit]  = P(CharIn("sS")).opaque("Short end")
-    def longEnd[_: P]: P[Unit]   = P(CharIn("lL")).opaque("Long end")
-    def floatEnd[_: P]: P[Unit]  = P(CharIn("fF")).opaque("Float end")
-    def doubleEnd[_: P]: P[Unit] = P(CharIn("dD")).opaque("Double end")
+    val compoundStart: P[Unit] = withOptionalWhitespace(P.char('{')).void.withContext("Compound start")
+    val compoundEnd: P[Unit]   = withOptionalWhitespace(P.char('}')).void.withContext("Compound end")
+    val listStart: P[Unit]     = withOptionalWhitespace(P.char('[')).void.withContext("List start")
+    val listEnd: P[Unit]       = withOptionalWhitespace(P.char(']')).void.withContext("List end")
 
-    def nbtByte[_: P]: P[NBTByte]   = P(zNumber ~ byteEnd).map(n => NBTByte(n.toByte))
-    def nbtShort[_: P]: P[NBTShort] = P(zNumber ~ shortEnd).map(n => NBTShort(n.toShort))
-    def nbtLong[_: P]: P[NBTLong]   = P(zNumber ~ longEnd).map(n => NBTLong(n.toLong))
-    def nbtFloat[_: P]: P[NBTFloat] = P(floatingPoint ~ floatEnd).map(n => NBTFloat(n.toFloat))
-    def nbtDouble[_: P]: P[NBTDouble] =
-      P(
-        (zNumber.map(BigDecimal(_)) ~ doubleEnd) |
-          (zNumber ~ floatingPoint ~ doubleEnd.?)
-            .map(t =>
-              BigDecimal(t._1) + (math.signum(t._1.toInt) * t._2)
-            ) |                                    // Parse whole part followed by floating part
-          (!zNumber ~ floatingPoint ~ doubleEnd.?) // Only used for more exotic stuff
-      ).map(n => NBTDouble(n.toDouble))
-    def nbtInt[_: P]: P[NBTInt] = P(zNumber.map(n => NBTInt(n.toInt)))
+    val byteEnd: P[Unit]   = P.charIn("bB").void.withContext("Byte end")
+    val shortEnd: P[Unit]  = P.charIn("sS").void.withContext("Short end")
+    val longEnd: P[Unit]   = P.charIn("lL").void.withContext("Long end")
+    val floatEnd: P[Unit]  = P.charIn("fF").void.withContext("Float end")
+    val doubleEnd: P[Unit] = P.charIn("dD").void.withContext("Double end")
 
-    def nbtNumber[_: P]: P[NBTTag] = P(nbtByte | nbtShort | nbtLong | nbtFloat | nbtDouble | nbtInt)
-    def nbtString[_: P]: P[NBTString] =
-      P(rawString | stringLiteral('"') | stringLiteral('\'')).map(s => NBTString(s.substring(1, s.length - 1)))
+    val nbtByte: P[NBTByte]   = (zNumber <* byteEnd).map(n => NBTByte(n.toByte))
+    val nbtShort: P[NBTShort] = (zNumber <* shortEnd).map(n => NBTShort(n.toShort))
+    val nbtLong: P[NBTLong]   = (zNumber <* longEnd).map(n => NBTLong(n.toLong))
+    val nbtFloat: P[NBTFloat] = (floatingPoint <* floatEnd).map(n => NBTFloat(n.toFloat))
+    val nbtDouble: P[NBTDouble] =
+      (floatingPoint ~ doubleEnd.?)
+        .filter { case (n, end) =>
+          end.isDefined || !n.isWhole
+        }
+        .map(t => NBTDouble(t._1.toDouble))
 
-    def nbtTag[_: P]: P[NBTTag] =
-      P(nbtNumber | nbtString | nbtCompound | nbtByteArray | nbtIntArray | nbtLongArray | nbtList)
+    val nbtInt: P[NBTInt] = zNumber.map(n => NBTInt(n.toInt))
 
-    def nbtNamedTag[_: P]: P[NamedTag] = P(tagName ~/ colon ~/ nbtTag)
-    def nbtCompound[_: P]: P[NBTCompound] =
-      P(compoundStart ~/ nbtNamedTag.rep(sep = comma./) ~/ compoundEnd).map(xs => NBTCompound(xs.toMap))
-    def nbtByteArray[_: P]: P[NBTByteArray] =
-      P(listStart ~ "B;" ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTByteArray(xs.map(_.toByte).toVector))
-    def nbtIntArray[_: P]: P[NBTIntArray] =
-      P(listStart ~ "I;" ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTIntArray(xs.map(_.toInt).toVector))
-    def nbtLongArray[_: P]: P[NBTLongArray] =
-      P(listStart ~ "L;" ~/ zNumber.rep(sep = comma./) ~/ listEnd).map(xs => NBTLongArray(xs.map(_.toLong).toVector))
+    val nbtNumber: P[NBTTag] =
+      nbtByte.backtrack | nbtShort.backtrack | nbtLong.backtrack | nbtFloat.backtrack | nbtDouble.backtrack | nbtInt
+    val nbtString: P[NBTString] =
+      (rawString | stringLiteral('"') | stringLiteral('\'')).map(s => NBTString(s.substring(1, s.length - 1)))
 
-    def indexedTag[_: P]: P[IndexedTag] = P((tagIndex ~ colon).? ~ nbtTag)
-    def nbtList[_: P]: P[NBTList[_, _ <: NBTTag]] =
-      P(listStart ~ indexedTag.rep(sep = comma./) ~/ listEnd)
+    val nbtByteArray: P[NBTByteArray] = zNumber
+      .repSep0(comma)
+      .with1
+      .between(listStart ~ P.string("B;"), listEnd)
+      .map(xs => NBTByteArray(xs.map(_.toByte).toVector))
+    val nbtIntArray: P[NBTIntArray] = zNumber
+      .repSep0(comma)
+      .with1
+      .between(listStart ~ P.string("I;"), listEnd)
+      .map(xs => NBTIntArray(xs.map(_.toInt).toVector))
+    val nbtLongArray: P[NBTLongArray] = zNumber
+      .repSep0(comma)
+      .with1
+      .between(listStart ~ P.string("L;"), listEnd)
+      .map(xs => NBTLongArray(xs.map(_.toLong).toVector))
+
+    val nbtArray: P[NBTTag] = nbtByteArray.backtrack | nbtIntArray.backtrack | nbtLongArray.backtrack
+
+    lazy val nbtArrayIsh: P[NBTTag] = P.defer(nbtArray | nbtList)
+
+    lazy val nbtTag: P[NBTTag] = P.defer(nbtNumber | nbtString | nbtCompound | nbtArrayIsh)
+
+    val nbtNamedTag: P[NamedTag] = (tagName <* colon.void) ~ nbtTag
+    val nbtCompound: P[NBTCompound] =
+      nbtNamedTag.repSep0(comma).with1.between(compoundStart, compoundEnd).map(xs => NBTCompound(xs.toMap))
+
+    val indexedTag: P[IndexedTag] = (tagIndex.soft <* colon).?.with1 ~ nbtTag
+    val nbtList: P[NBTList[_, _ <: NBTTag]] =
+      indexedTag
+        .repSep0(comma)
+        .with1
+        .between(listStart, listEnd)
         /*
         .filter {
           case seq if seq.nonEmpty =>
@@ -132,9 +153,9 @@ object Mojangson {
           case _ =>
             NBTList[Byte, NBTByte]().asInstanceOf[NBTList[Any, unsafe.AnyTag]] // We use byte if there are no elements
         }
-        .opaque("NBT List")
+        .withContext("NBT List")
 
-    def wholeNbt[_: P]: P[NBTCompound] = P(nbtCompound ~ End)
+    val wholeNbt: P[NBTCompound] = nbtCompound <* P.end
   }
 
   /** Convert a [[net.katsstuff.typenbt.NBTTag]] to mojangson. */
